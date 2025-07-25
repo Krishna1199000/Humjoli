@@ -185,7 +185,7 @@ export default function LandingPage() {
                 {/* Couple Photo */}
                 <div className="relative z-10 rounded-full overflow-hidden border-8 border-white shadow-2xl">
                   <Image
-                    src="/image1.png"
+                    src="/Image1.png"
                     alt="Beautiful Wedding Couple"
                     width={400}
                     height={400}
