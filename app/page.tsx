@@ -22,9 +22,12 @@ import {
   Phone,
   Mail,
   MapPin,
+  User,
+  LogOut,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSession, signOut } from "next-auth/react"
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60, transition: { duration: 0.6, ease: "easeOut" } },
@@ -72,6 +75,7 @@ const testimonials = [
 ]
 
 export default function LandingPage() {
+  const { data: session } = useSession()
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
   const { scrollY } = useScroll()
   const y1 = useTransform(scrollY, [0, 300], [0, -50])
@@ -93,62 +97,135 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100">
       {/* Navbar */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-rose-100"
+        className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-purple-100"
       >
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <motion.div whileHover={{ scale: 1.05 }} className="text-2xl font-serif font-bold text-rose-600">
+          <motion.div whileHover={{ scale: 1.05 }} className="text-xl sm:text-2xl font-serif font-bold text-purple-600">
             Humjoli
           </motion.div>
-          <div className="hidden md:flex space-x-8">
-            {["Home", "Services", "About Us", "Contact"].map((item) => (
+          <div className="hidden lg:flex space-x-4 xl:space-x-8">
+            {["Home", "Services", "Contact"].map((item) => (
               <motion.a
                 key={item}
                 href={`#${item.toLowerCase().replace(" ", "-")}`}
-                whileHover={{ scale: 1.05, color: "#e11d48" }}
-                className="text-gray-700 hover:text-rose-600 transition-colors font-medium"
+                whileHover={{ scale: 1.05, color: "#7c3aed" }}
+                className="text-gray-700 hover:text-purple-600 transition-colors font-medium"
               >
                 {item}
               </motion.a>
             ))}
+            <Link href="/about">
+              <motion.a
+                whileHover={{ scale: 1.05, color: "#7c3aed" }}
+                className="text-gray-700 hover:text-purple-600 transition-colors font-medium cursor-pointer"
+              >
+                About Us
+              </motion.a>
+            </Link>
+            <Link href="/inventory">
+              <motion.a
+                whileHover={{ scale: 1.05, color: "#7c3aed" }}
+                className="text-gray-700 hover:text-purple-600 transition-colors font-medium cursor-pointer"
+              >
+                Inventory
+              </motion.a>
+            </Link>
+            {session?.user?.id && (
+              <Link href="/favorites">
+                <motion.a
+                  whileHover={{ scale: 1.05, color: "#7c3aed" }}
+                  className="text-gray-700 hover:text-purple-600 transition-colors font-medium cursor-pointer"
+                >
+                  My Favorites
+                </motion.a>
+              </Link>
+            )}
+            {session?.user?.role === "ADMIN" && (
+              <Link href="/master">
+                <motion.a
+                  whileHover={{ scale: 1.05, color: "#7c3aed" }}
+                  className="text-gray-700 hover:text-purple-600 transition-colors font-medium cursor-pointer"
+                >
+                  Master
+                </motion.a>
+              </Link>
+            )}
           </div>
-          <Link href="/auth">
-            <Button
-              className="border-rose-300 text-rose-600 hover:bg-rose-50 hover:border-rose-400 transition-all duration-300 bg-transparent"
-            >
-              Sign In
-            </Button>
-          </Link>
+          {session ? (
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="hidden sm:flex items-center space-x-2 text-purple-600">
+                <User className="h-4 w-4" />
+                <span className="font-medium text-sm lg:text-base">{session.user?.name || session.user?.email}</span>
+                <Badge className={`${
+                  session.user?.role === "ADMIN" 
+                    ? "bg-red-100 text-red-600" 
+                    : "bg-purple-100 text-purple-600"
+                } text-xs`}>
+                  {session.user?.role === "ADMIN" ? "Admin" : "Customer"}
+                </Badge>
+              </div>
+              <Link href={session.user?.role === "ADMIN" ? "/admin/dashboard" : "/dashboard"}>
+                <Button className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-3 sm:px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-xs sm:text-sm">
+                  Dashboard
+                </Button>
+              </Link>
+              <Button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400 transition-all duration-300 bg-transparent p-2 sm:px-4"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Sign Out</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Link href="/signin">
+                <Button
+                  className="border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400 transition-all duration-300 bg-transparent px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                >
+                  Sign In
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button
+                  className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-3 sm:px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-xs sm:text-sm"
+                >
+                  Sign Up
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </motion.nav>
 
       {/* Hero Section */}
-      <section className="pt-24 pb-16 px-4 overflow-hidden">
+      <section className="pt-20 sm:pt-24 pb-12 sm:pb-16 px-4 overflow-hidden">
         <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="space-y-6"
+              className="space-y-4 sm:space-y-6 text-center lg:text-left"
             >
               <motion.h1
-                className="text-5xl lg:text-6xl font-serif font-bold text-gray-800 leading-tight"
+                className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-gray-800 leading-tight"
                 {...fadeInUp}
               >
                 Bringing Dreams to Life with{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-amber-500">
-                  Dreamy
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-purple-700">
+                  Humjoli
                 </span>
               </motion.h1>
 
               <motion.p
-                className="text-xl text-gray-600 leading-relaxed"
+                className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
@@ -162,9 +239,9 @@ export default function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.6 }}
               >
                 <Button
-                  className="bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white px-8 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+                  className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                 >
-                  <Heart className="mr-2 h-5 w-5" />
+                  <Heart className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   Plan Your Wedding
                 </Button>
               </motion.div>
@@ -178,12 +255,12 @@ export default function LandingPage() {
                 className="relative"
               >
                 {/* Floral Frame */}
-                <div className="absolute inset-0 bg-gradient-to-br from-rose-200 via-amber-100 to-rose-200 rounded-full p-8 transform rotate-12">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-200 via-purple-100 to-purple-200 rounded-full p-8 transform rotate-12">
                   <div className="w-full h-full rounded-full bg-white/50 backdrop-blur-sm"></div>
                 </div>
 
                 {/* Couple Photo */}
-                <div className="relative z-10 rounded-full overflow-hidden border-8 border-white shadow-2xl">
+                <div className="relative z-10 rounded-full overflow-hidden border-4 sm:border-8 border-white shadow-2xl w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96 mx-auto lg:mx-0">
                   <Image
                     src="/Image1.png"
                     alt="Beautiful Wedding Couple"
@@ -204,7 +281,7 @@ export default function LandingPage() {
                     repeat: Number.POSITIVE_INFINITY,
                     ease: "easeInOut",
                   }}
-                  className="absolute -top-4 -right-4 bg-gradient-to-br from-amber-400 to-rose-400 rounded-full p-3 shadow-lg"
+                  className="absolute -top-4 -right-4 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full p-3 shadow-lg"
                 >
                   <Heart className="h-6 w-6 text-white" />
                 </motion.div>
@@ -220,7 +297,7 @@ export default function LandingPage() {
                     ease: "easeInOut",
                     delay: 1,
                   }}
-                  className="absolute -bottom-4 -left-4 bg-gradient-to-br from-rose-400 to-amber-400 rounded-full p-3 shadow-lg"
+                  className="absolute -bottom-4 -left-4 bg-gradient-to-br from-purple-600 to-purple-400 rounded-full p-3 shadow-lg"
                 >
                   <Sparkles className="h-6 w-6 text-white" />
                 </motion.div>
@@ -231,20 +308,20 @@ export default function LandingPage() {
       </section>
 
       {/* Services Section */}
-      <section id="services" className="py-20 px-4 bg-gradient-to-br from-white to-rose-50">
+      <section id="services" className="py-16 sm:py-20 px-4 bg-gradient-to-br from-white to-purple-50">
         <div className="container mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
           >
-            <Badge className="mb-4 bg-rose-100 text-rose-600 hover:bg-rose-200">Our Services</Badge>
-            <h2 className="text-4xl lg:text-5xl font-serif font-bold text-gray-800 mb-4">
+            <Badge className="mb-4 bg-purple-100 text-purple-600 hover:bg-purple-200">Our Services</Badge>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-gray-800 mb-4">
               Everything You Need for Your Perfect Day
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-4">
               From traditional ceremonies to modern celebrations, we handle every detail with care and expertise
             </p>
           </motion.div>
@@ -254,7 +331,7 @@ export default function LandingPage() {
             initial="initial"
             whileInView="animate"
             viewport={{ once: true }}
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
             {services.map((service, index) => (
               <motion.div
@@ -266,12 +343,12 @@ export default function LandingPage() {
                 }}
                 className="group"
               >
-                <Card className="h-full bg-white/70 backdrop-blur-sm border-rose-100 hover:border-rose-300 transition-all duration-300">
+                <Card className="h-full bg-white/70 backdrop-blur-sm border-purple-100 hover:border-purple-300 transition-all duration-300">
                   <CardContent className="p-6 text-center">
                     <motion.div
                       whileHover={{ rotate: 360 }}
                       transition={{ duration: 0.6 }}
-                      className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-rose-400 to-amber-400 rounded-full mb-4 group-hover:shadow-lg transition-shadow"
+                                              className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full mb-4 group-hover:shadow-lg transition-shadow"
                     >
                       <service.icon className="h-8 w-8 text-white" />
                     </motion.div>
@@ -286,17 +363,17 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-rose-50 to-amber-50">
+      <section className="py-16 sm:py-20 px-4 bg-gradient-to-br from-purple-50 to-purple-100">
         <div className="container mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            className="text-center mb-12 sm:mb-16"
           >
             <Badge className="mb-4 bg-amber-100 text-amber-600 hover:bg-amber-200">Testimonials</Badge>
-            <h2 className="text-4xl lg:text-5xl font-serif font-bold text-gray-800 mb-4">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-gray-800 mb-4">
               Happy Couples, Beautiful Memories
             </h2>
           </motion.div>
@@ -310,27 +387,27 @@ export default function LandingPage() {
               transition={{ duration: 0.5 }}
               className="text-center"
             >
-              <Card className="bg-white/80 backdrop-blur-sm border-rose-100 shadow-xl">
-                <CardContent className="p-8">
+                            <Card className="bg-white/80 backdrop-blur-sm border-purple-100 shadow-xl">
+                <CardContent className="p-6 sm:p-8">
                   <div className="flex justify-center mb-4">
                     {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 text-amber-400 fill-current" />
+                      <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400 fill-current" />
                     ))}
                   </div>
-                  <p className="text-xl text-gray-700 mb-6 italic font-serif leading-relaxed">
+                  <p className="text-base sm:text-lg lg:text-xl text-gray-700 mb-6 italic font-serif leading-relaxed">
                     "{testimonials[currentTestimonial].text}"
                   </p>
-                  <div className="flex items-center justify-center space-x-4">
+                  <div className="flex items-center justify-center space-x-3 sm:space-x-4">
                     <Image
                       src={testimonials[currentTestimonial].image || "/placeholder.svg"}
                       alt={testimonials[currentTestimonial].name}
                       width={60}
                       height={60}
-                      className="rounded-full border-2 border-rose-200"
+                      className="rounded-full border-2 border-purple-200 w-12 h-12 sm:w-15 sm:h-15"
                     />
                     <div>
-                      <h4 className="font-semibold text-gray-800">{testimonials[currentTestimonial].name}</h4>
-                      <p className="text-gray-600">Happy Couple</p>
+                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base">{testimonials[currentTestimonial].name}</h4>
+                      <p className="text-gray-600 text-xs sm:text-sm">Happy Couple</p>
                     </div>
                   </div>
                 </CardContent>
@@ -356,7 +433,7 @@ export default function LandingPage() {
                   key={index}
                   onClick={() => setCurrentTestimonial(index)}
                   className={`w-3 h-3 rounded-full transition-all ${
-                    index === currentTestimonial ? "bg-rose-500 scale-125" : "bg-rose-200 hover:bg-rose-300"
+                                            index === currentTestimonial ? "bg-purple-500 scale-125" : "bg-purple-200 hover:bg-purple-300"
                   }`}
                 />
               ))}
@@ -366,35 +443,174 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-rose-500 via-rose-400 to-amber-400">
-        <motion.div style={{ y: y2 }} className="container mx-auto text-center">
+      <section className="relative py-24 px-4 overflow-hidden">
+        {/* Enhanced Background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700">
+          {/* Animated Background Elements */}
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              rotate: [0, 180, 360],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "linear",
+            }}
+            className="absolute -top-20 -left-20 w-60 h-60 bg-white/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              scale: [1.2, 1, 1.2],
+              rotate: [360, 180, 0],
+            }}
+            transition={{
+              duration: 25,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "linear",
+            }}
+            className="absolute -bottom-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"
+          />
+          <motion.div
+            animate={{
+              y: [0, -30, 0],
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Number.POSITIVE_INFINITY,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/2 left-1/4 w-40 h-40 bg-white/5 rounded-full blur-2xl"
+          />
+        </div>
+
+        {/* Content */}
+        <motion.div 
+          style={{ y: y2 }} 
+          className="container mx-auto text-center relative z-10"
+        >
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="max-w-3xl mx-auto"
+            className="max-w-4xl mx-auto"
           >
-            <h2 className="text-4xl lg:text-5xl font-serif font-bold text-white mb-6">
-              Ready to Plan Your Dream Wedding?
-            </h2>
-            <p className="text-xl text-rose-100 mb-8">
+            {/* Decorative Elements */}
+            <motion.div
+              animate={{
+                rotate: [0, 10, -10, 0],
+                scale: [1, 1.05, 1],
+              }}
+              transition={{
+                duration: 3,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+              }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full mx-auto mb-8 shadow-2xl"
+            >
+              <Heart className="h-10 w-10 text-white" />
+            </motion.div>
+
+            {/* Enhanced Typography */}
+            <motion.h2 
+              className="text-5xl lg:text-7xl font-serif font-bold text-white mb-8 leading-tight"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={{ once: true }}
+            >
+              Ready to Plan Your{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-white">
+                Dream Wedding?
+              </span>
+            </motion.h2>
+            
+            <motion.p 
+              className="text-xl lg:text-2xl text-white/90 mb-12 leading-relaxed font-medium"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              viewport={{ once: true }}
+            >
               Let us bring your vision to life with our expert planning and beautiful execution
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                className="bg-white text-rose-600 hover:bg-rose-50 px-8 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-              >
-                <Phone className="mr-2 h-5 w-5" />
-                Call Us Now
-              </Button>
-              <Button
-                className="border-white text-white hover:bg-white hover:text-rose-600 px-8 py-4 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 bg-transparent"
-              >
-                <Mail className="mr-2 h-5 w-5" />
-                Get Quote
-              </Button>
-            </div>
+            </motion.p>
+
+            {/* Enhanced Buttons */}
+            <motion.div 
+              className="flex flex-col sm:flex-row gap-6 justify-center items-center"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              viewport={{ once: true }}
+            >
+              {session ? (
+                <>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Link href="/dashboard">
+                      <Button className="bg-white text-purple-600 hover:bg-purple-50 px-10 py-5 text-lg font-semibold rounded-full shadow-2xl hover:shadow-3xl transform transition-all duration-300 border-2 border-white/20 backdrop-blur-sm">
+                        <Heart className="mr-3 h-6 w-6" />
+                        Go to Dashboard
+                      </Button>
+                    </Link>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-purple-600 px-10 py-5 text-lg font-semibold rounded-full shadow-2xl hover:shadow-3xl transform transition-all duration-300 backdrop-blur-sm">
+                      <Mail className="mr-3 h-6 w-6" />
+                      Get Quote
+                    </Button>
+                  </motion.div>
+                </>
+              ) : (
+                <>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button className="bg-white text-purple-600 hover:bg-purple-50 px-10 py-5 text-lg font-semibold rounded-full shadow-2xl hover:shadow-3xl transform transition-all duration-300 border-2 border-white/20 backdrop-blur-sm">
+                      <Phone className="mr-3 h-6 w-6" />
+                      Call Us Now
+                    </Button>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-purple-600 px-10 py-5 text-lg font-semibold rounded-full shadow-2xl hover:shadow-3xl transform transition-all duration-300 backdrop-blur-sm">
+                      <Mail className="mr-3 h-6 w-6" />
+                      Get Quote
+                    </Button>
+                  </motion.div>
+                </>
+              )}
+            </motion.div>
+
+            {/* Additional Decorative Elements */}
+            <motion.div
+              animate={{
+                opacity: [0.5, 1, 0.5],
+                scale: [0.8, 1, 0.8],
+              }}
+              transition={{
+                duration: 4,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+              }}
+              className="mt-12 flex justify-center space-x-4"
+            >
+              <div className="w-3 h-3 bg-white/60 rounded-full"></div>
+              <div className="w-3 h-3 bg-white/40 rounded-full"></div>
+              <div className="w-3 h-3 bg-white/60 rounded-full"></div>
+            </motion.div>
           </motion.div>
         </motion.div>
       </section>
@@ -404,29 +620,29 @@ export default function LandingPage() {
         <div className="container mx-auto">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-2xl font-serif font-bold text-rose-400 mb-4">Humjoli</h3>
+              <h3 className="text-2xl font-serif font-bold text-purple-400 mb-4">Humjoli</h3>
               <p className="text-gray-400 mb-4">
                 Creating magical wedding experiences with traditional charm and modern elegance.
               </p>
               <div className="flex space-x-4">
                 <motion.a
-                  whileHover={{ scale: 1.2, color: "#fb7185" }}
+                  whileHover={{ scale: 1.2, color: "#a855f7" }}
                   href="#"
-                  className="text-gray-400 hover:text-rose-400 transition-colors"
+                  className="text-gray-400 hover:text-purple-400 transition-colors"
                 >
                   <Facebook className="h-6 w-6" />
                 </motion.a>
                 <motion.a
-                  whileHover={{ scale: 1.2, color: "#fb7185" }}
+                  whileHover={{ scale: 1.2, color: "#a855f7" }}
                   href="#"
-                  className="text-gray-400 hover:text-rose-400 transition-colors"
+                  className="text-gray-400 hover:text-purple-400 transition-colors"
                 >
                   <Instagram className="h-6 w-6" />
                 </motion.a>
                 <motion.a
-                  whileHover={{ scale: 1.2, color: "#fb7185" }}
+                  whileHover={{ scale: 1.2, color: "#a855f7" }}
                   href="#"
-                  className="text-gray-400 hover:text-rose-400 transition-colors"
+                  className="text-gray-400 hover:text-purple-400 transition-colors"
                 >
                   <Twitter className="h-6 w-6" />
                 </motion.a>
@@ -437,24 +653,29 @@ export default function LandingPage() {
               <h4 className="text-lg font-semibold mb-4">Services</h4>
               <ul className="space-y-2 text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Wedding Planning
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Dhol & Music
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Decorations
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Photography
                   </a>
+                </li>
+                <li>
+                  <Link href="/inventory" className="hover:text-purple-400 transition-colors">
+                    Wedding Supplies
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -463,22 +684,22 @@ export default function LandingPage() {
               <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
               <ul className="space-y-2 text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     About Us
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Portfolio
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Testimonials
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-rose-400 transition-colors">
+                  <a href="#" className="hover:text-purple-400 transition-colors">
                     Contact
                   </a>
                 </li>
@@ -489,15 +710,15 @@ export default function LandingPage() {
               <h4 className="text-lg font-semibold mb-4">Contact Info</h4>
               <div className="space-y-3 text-gray-400">
                 <div className="flex items-center">
-                  <Phone className="h-5 w-5 mr-3 text-rose-400" />
+                  <Phone className="h-5 w-5 mr-3 text-purple-400" />
                   <span>+91 98765 43210</span>
                 </div>
                 <div className="flex items-center">
-                  <Mail className="h-5 w-5 mr-3 text-rose-400" />
+                  <Mail className="h-5 w-5 mr-3 text-purple-400" />
                   <span>hello@humjoli.com</span>
                 </div>
                 <div className="flex items-center">
-                  <MapPin className="h-5 w-5 mr-3 text-rose-400" />
+                  <MapPin className="h-5 w-5 mr-3 text-purple-400" />
                   <span>Mumbai, India</span>
                 </div>
               </div>
