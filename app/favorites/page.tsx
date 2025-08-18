@@ -131,7 +131,7 @@ export default function FavoritesPage() {
             </div>
 
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Link href="/inventory">
+              <Link href="/admin/inventory">
                 <Button className="bg-white border-2 border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400 px-2 sm:px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-xs sm:text-sm">
                   Browse Inventory
                 </Button>
@@ -189,7 +189,7 @@ export default function FavoritesPage() {
               <Heart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-800 mb-2">No Favorites Yet</h2>
               <p className="text-gray-600 mb-6">Start browsing our inventory and add items to your favorites!</p>
-              <Link href="/inventory">
+              <Link href="/admin/inventory">
                 <Button className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
                   <Package className="mr-2 h-5 w-5" />
                   Browse Inventory
@@ -267,13 +267,15 @@ export default function FavoritesPage() {
                               {favorite.inventory.quantity} in stock
                             </p>
                           </div>
-                          <Link href={`/inventory/${favorite.inventory.id}`}>
-                            <Button
-                              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 text-sm"
-                            >
-                              View Details
-                            </Button>
-                          </Link>
+                          <Button
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 text-sm"
+                            onClick={() => {
+                              // This will be handled by the modal in admin inventory
+                              window.location.href = '/admin/inventory'
+                            }}
+                          >
+                            View Details
+                          </Button>
                         </div>
                       </div>
                     </CardContent>

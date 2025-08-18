@@ -181,3 +181,62 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Invoice Management
+model Invoice {
+  id            String   @id @default(cuid())
+  quotationNo   String   @unique
+  customerName  String
+  customerAddress String
+  customerTel   String
+  customerState String
+  customerStateCode String
+  customerGSTIN String?
+  refName       String?
+  bookingDate   DateTime
+  eventDate     DateTime
+  startTime     String
+  endTime       String
+  manager       String?
+  advanceAmount Float    @default(0)
+  balanceAmount Float    @default(0)
+  remarks       String?
+  totalAmount   Float    @default(0)
+  cgstAmount    Float    @default(0)
+  sgstAmount    Float    @default(0)
+  taxableAmount Float    @default(0)
+  sacCode       String   @default("00440035")
+  invoiceValueInWords String
+  status        InvoiceStatus @default(PENDING)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  items InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String   @id @default(cuid())
+  invoiceId String
+  srl       Int
+  particular String
+  quantity  Int
+  rent      Float
+  amount    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+}
+
+// Invoice Counter for auto-incrementing quotation numbers
+model InvoiceCounter {
+  id    String @id @default(cuid())
+  currentNumber Int @default(1)
+  updatedAt DateTime @updatedAt
+}

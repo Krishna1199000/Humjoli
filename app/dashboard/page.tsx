@@ -92,7 +92,7 @@ export default function DashboardPage() {
       icon: Package,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
-      href: "/inventory"
+      href: "/admin/inventory"
     },
     {
       title: "Categories",
@@ -100,7 +100,7 @@ export default function DashboardPage() {
       icon: ShoppingCart,
       color: "text-green-600",
       bgColor: "bg-green-50",
-      href: "/inventory"
+      href: "/admin/inventory"
     },
     {
       title: "Recent Activity",
@@ -208,7 +208,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Link href="/inventory">
+                <Link href="/admin/inventory">
                   <Button className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
                     <Package className="mr-2 h-5 w-5" />
                     Browse Inventory
@@ -250,7 +250,7 @@ export default function DashboardPage() {
                 Thank you for choosing us for your wedding planning needs. We're here to make your special day perfect.
               </p>
               <div className="flex justify-center space-x-4">
-                <Link href="/inventory">
+                <Link href="/admin/inventory">
                   <Button className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
                     <Package className="mr-2 h-5 w-5" />
                     Browse Inventory

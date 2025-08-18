@@ -22,6 +22,7 @@ import {
   Eye,
   X,
   Settings,
+  Heart,
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -30,6 +31,7 @@ import { InventoryItem, InventoryStatus } from "@/types/inventory"
 import InventoryForm from "@/components/InventoryForm"
 import Image from "next/image"
 import AdminNavbar from "@/components/AdminNavbar"
+import ItemModal from "@/components/ItemModal"
 
 export default function InventoryPage() {
   const { data: session } = useSession()
@@ -40,6 +42,10 @@ export default function InventoryPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null)
   const [selectedCategory, setSelectedCategory] = useState("")
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [favorites, setFavorites] = useState<string[]>([])
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
   // Redirect if not admin
   useEffect(() => {
@@ -48,10 +54,13 @@ export default function InventoryPage() {
     }
   }, [session, router])
 
-  // Fetch inventory items
+  // Fetch inventory items and favorites
   useEffect(() => {
     fetchInventory()
-  }, [])
+    if (session?.user?.id) {
+      fetchFavorites()
+    }
+  }, [session])
 
   const fetchInventory = async () => {
     try {
@@ -66,6 +75,52 @@ export default function InventoryPage() {
       toast.error('Failed to fetch inventory items')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchFavorites = async () => {
+    try {
+      const response = await fetch('/api/favorites')
+      if (response.ok) {
+        const data = await response.json()
+        setFavorites(data.map((fav: any) => fav.inventoryId))
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error)
+    }
+  }
+
+  const toggleFavorite = async (itemId: string) => {
+    try {
+      if (favorites.includes(itemId)) {
+        // Remove from favorites
+        const response = await fetch(`/api/favorites?inventoryId=${itemId}`, {
+          method: 'DELETE'
+        })
+        if (response.ok) {
+          setFavorites(prev => prev.filter(id => id !== itemId))
+          toast.success('Removed from favorites')
+        }
+      } else {
+        // Add to favorites
+        const response = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ inventoryId: itemId })
+        })
+        if (response.ok) {
+          setFavorites(prev => [...prev, itemId])
+          toast.success('Added to favorites')
+        } else {
+          const error = await response.json()
+          toast.error(error.error || 'Failed to add to favorites')
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+      toast.error('Failed to update favorites')
     }
   }
 
@@ -108,12 +163,23 @@ export default function InventoryPage() {
     setEditingItem(null)
   }
 
+  const openItemModal = (item: InventoryItem) => {
+    setSelectedItem(item)
+    setIsModalOpen(true)
+  }
+
+  const closeItemModal = () => {
+    setIsModalOpen(false)
+    setSelectedItem(null)
+  }
+
   const filteredItems = inventoryItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          item.category.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = !selectedCategory || item.category === selectedCategory
-    return matchesSearch && matchesCategory
+    const matchesFavorites = !showFavoritesOnly || favorites.includes(item.id)
+    return matchesSearch && matchesCategory && matchesFavorites
   })
 
   const categories = [...new Set(inventoryItems.map(item => item.category))]
@@ -212,6 +278,17 @@ export default function InventoryPage() {
                     ))}
                   </select>
                 </div>
+                <Button
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  className={`px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                    showFavoritesOnly 
+                      ? 'bg-red-100 border-2 border-red-300 text-red-600 hover:bg-red-50' 
+                      : 'bg-purple-100 border-2 border-purple-300 text-purple-600 hover:bg-purple-50'
+                  }`}
+                >
+                  <Heart className={`mr-2 h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                  {showFavoritesOnly ? 'Show All' : 'Favorites'}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -242,7 +319,7 @@ export default function InventoryPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
                 >
-                  <Card className="bg-white/70 backdrop-blur-sm border-purple-100 hover:border-purple-300 transition-all duration-300 group">
+                  <Card className="bg-white/70 backdrop-blur-sm border-purple-100 hover:border-purple-300 transition-all duration-300 group cursor-pointer" onClick={() => openItemModal(item)}>
                     <CardContent className="p-6">
                       <div className="relative mb-4">
                         {item.imageUrl ? (
@@ -262,6 +339,20 @@ export default function InventoryPage() {
                         <Badge className={`absolute top-2 right-2 ${getStatusColor(item.status)}`}>
                           {getStatusText(item.status)}
                         </Badge>
+                        {/* Favorite Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFavorite(item.id)
+                          }}
+                          className={`absolute top-2 left-2 p-1 rounded-full bg-white/80 backdrop-blur-sm transition-all duration-300 ${
+                            favorites.includes(item.id) 
+                              ? 'text-red-500' 
+                              : 'text-gray-400 hover:text-red-500'
+                          }`}
+                        >
+                          <Heart className={`h-4 w-4 ${favorites.includes(item.id) ? 'fill-current' : ''}`} />
+                        </button>
                       </div>
                       
                       <div className="space-y-2">
@@ -283,14 +374,20 @@ export default function InventoryPage() {
                       
                       <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-purple-100">
                         <Button
-                          onClick={() => handleEditItem(item)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditItem(item)
+                          }}
                           className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300"
                         >
                           <Edit className="mr-1 h-4 w-4" />
                           Edit
                         </Button>
                         <Button
-                          onClick={() => handleDeleteItem(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteItem(item.id)
+                          }}
                           className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-300"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -335,6 +432,15 @@ export default function InventoryPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Item Modal */}
+      <ItemModal
+        item={selectedItem}
+        isOpen={isModalOpen}
+        onClose={closeItemModal}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+      />
     </div>
   )
 } 
