@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "../auth/[...nextauth]/route"
+import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 // GET - Fetch user's favorites
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user exists by email (more reliable than ID after database reset)
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email || undefined }
     })
     
     console.log("GET User found:", user)
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user exists by email (more reliable than ID after database reset)
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email || undefined }
     })
     
     console.log("User found:", user)
@@ -134,7 +134,7 @@ export async function DELETE(request: NextRequest) {
 
     // Check if user exists by email
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email || undefined }
     })
     
     if (!user) {

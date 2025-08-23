@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "../../../auth/[...nextauth]/route"
+import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { generateInvoicePDF } from "@/utils/InvoiceTemplate"
 
@@ -85,12 +85,16 @@ export async function GET(
       }))
     }
 
-    console.log('Generating PDF...')
+    console.log('Generating PDF with data:', JSON.stringify(pdfData, null, 2))
     
     // Generate PDF
     const pdfBuffer = await generateInvoicePDF(pdfData)
     
     console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes')
+    
+    if (pdfBuffer.length === 0) {
+      throw new Error('Generated PDF is empty')
+    }
 
     // Return PDF as response
     return new NextResponse(pdfBuffer, {

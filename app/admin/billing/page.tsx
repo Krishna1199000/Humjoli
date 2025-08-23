@@ -144,22 +144,43 @@ export default function BillingPage() {
     setPreviewLoading(true)
     setPreviewOpen(true)
     try {
-      const [metaRes, pdfRes] = await Promise.all([
-        fetch(`/api/invoices/${invoiceId}`),
-        fetch(`/api/invoices/${invoiceId}/download`),
-      ])
-      if (!metaRes.ok) throw new Error("Failed to load invoice")
+      console.log('Opening preview for invoice:', invoiceId)
+      
+      // First fetch invoice metadata
+      const metaRes = await fetch(`/api/invoices/${invoiceId}`)
+      if (!metaRes.ok) {
+        const errorText = await metaRes.text()
+        throw new Error(`Failed to load invoice: ${errorText}`)
+      }
       const json = await metaRes.json()
+      console.log('Invoice metadata loaded:', json)
       setPreviewInvoice(json)
       setStatusEdit((json.status as 'PENDING' | 'PAID') || 'PENDING')
-      if (!pdfRes.ok) throw new Error("Failed to load PDF")
+      
+      // Then fetch PDF
+      const pdfRes = await fetch(`/api/invoices/${invoiceId}/download`)
+      if (!pdfRes.ok) {
+        const errorText = await pdfRes.text()
+        throw new Error(`Failed to load PDF: ${errorText}`)
+      }
+      
       const blob = await pdfRes.blob()
+      console.log('PDF blob size:', blob.size)
+      
+      if (blob.size === 0) {
+        throw new Error('Generated PDF is empty')
+      }
+      
       const url = URL.createObjectURL(blob)
       setPreviewPdfUrl(url)
+      console.log('Preview URL created:', url)
     } catch (e) {
-      toast.error("Failed to open invoice preview")
+      console.error('Preview error:', e)
+      toast.error(`Failed to open invoice preview: ${e instanceof Error ? e.message : String(e)}`)
       setPreviewOpen(false)
-    } finally { setPreviewLoading(false) }
+    } finally { 
+      setPreviewLoading(false) 
+    }
   }
 
   const deleteInvoice = async (invoiceId: string) => {

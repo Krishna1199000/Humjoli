@@ -36,13 +36,21 @@ interface InvoiceData {
 }
 
 function generateInvoiceHTML(data: InvoiceData): string {
+  console.log('Generating HTML with data:', JSON.stringify(data, null, 2));
+  
+  // Validate data
+  if (!data.items || data.items.length === 0) {
+    console.warn('No items found in invoice data');
+    data.items = [{ srl: 1, particular: 'No items', quantity: 0, rent: 0, amount: 0 }];
+  }
+  
   const itemsHTML = data.items.map(item => `
     <tr>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.srl}</td>
-      <td style="text-align: left; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.particular}</td>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.quantity}</td>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.rent.toFixed(2)}</td>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.amount.toFixed(2)}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.srl || ''}</td>
+      <td style="text-align: left; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.particular || ''}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.quantity || 0}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${(item.rent || 0).toFixed(2)}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${(item.amount || 0).toFixed(2)}</td>
     </tr>
   `).join('')
 
