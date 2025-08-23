@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../../auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma"
-import puppeteer from "puppeteer"
+import chromium from "@sparticuz/chromium"
+import puppeteerCore from "puppeteer-core"
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -121,23 +122,151 @@ export async function GET(req: NextRequest) {
       </html>
     `
 
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox','--disable-setuid-sandbox'] })
+    let browser;
+    
     try {
-      const page = await browser.newPage()
-      await page.setContent(html, { waitUntil: 'networkidle0' })
-      const pdf = await page.pdf({ format: 'A4', margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' }, printBackground: true })
+      console.log('Environment:', process.env.NODE_ENV);
+      console.log('Platform:', process.platform);
+      
+      // Check if we're in Vercel environment
+      const isVercel = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+      
+      if (isVercel) {
+        console.log('Using Vercel Chromium configuration');
+        
+        // Configure Chromium for Vercel
+        await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+        
+        // Launch browser with proper Vercel configuration
+        browser = await puppeteerCore.launch({
+          args: [
+            ...chromium.args,
+            '--hide-scrollbars',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor'
+          ],
+          defaultViewport: { width: 1200, height: 800 },
+          executablePath: await chromium.executablePath(),
+          headless: true,
+        });
+      } else {
+        console.log('Using local Puppeteer configuration');
+        
+        // For local development, try to use puppeteer with explicit Chrome path
+        try {
+          const puppeteer = (await import('puppeteer')).default;
+          
+          // Try to launch with default configuration first
+          browser = await puppeteer.launch({
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-accelerated-2d-canvas',
+              '--no-first-run',
+              '--no-zygote',
+              '--single-process',
+              '--disable-gpu',
+              '--disable-background-timer-throttling',
+              '--disable-backgrounding-occluded-windows',
+              '--disable-renderer-backgrounding'
+            ]
+          });
+        } catch (error) {
+          console.log('Regular puppeteer failed, trying with explicit Chrome path');
+          
+          // If that fails, try with explicit Chrome path
+          const puppeteer = (await import('puppeteer')).default;
+          const { execSync } = require('child_process');
+          const { existsSync } = require('fs');
+          const { join } = require('path');
+          
+          let chromePath = null;
+          
+          // Try to find Chrome
+          try {
+            chromePath = execSync('where chrome', { encoding: 'utf8' }).trim().split('\n')[0];
+            if (!existsSync(chromePath)) chromePath = null;
+          } catch (e) {
+            // Chrome not in PATH, try common locations
+            const commonPaths = [
+              'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+              'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+              join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
+              join(process.env.PROGRAMFILES || '', 'Google\\Chrome\\Application\\chrome.exe'),
+              join(process.env['PROGRAMFILES(X86)'] || '', 'Google\\Chrome\\Application\\chrome.exe')
+            ];
+            
+            for (const path of commonPaths) {
+              if (existsSync(path)) {
+                chromePath = path;
+                break;
+              }
+            }
+          }
+          
+          if (chromePath) {
+            console.log('Found Chrome at:', chromePath);
+            browser = await puppeteer.launch({
+              executablePath: chromePath,
+              headless: true,
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process',
+                '--disable-gpu',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding'
+              ]
+            });
+          } else {
+            throw new Error('Chrome not found on system. Please install Google Chrome or run: npx puppeteer browsers install chrome');
+          }
+        }
+      }
+
+      const page = await browser.newPage();
+      await page.setContent(html, { 
+        waitUntil: 'networkidle0',
+        timeout: 30000 
+      });
+      
+      // Wait a bit for fonts to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const pdf = await page.pdf({ 
+        format: 'A4', 
+        margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' }, 
+        printBackground: true,
+        preferCSSPageSize: true
+      });
+      
       return new NextResponse(Buffer.from(pdf), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="SalesReport-${year}-${String(month).padStart(2,'0')}.pdf"`
         }
-      })
+      });
+    } catch (error) {
+      console.error('Error generating sales report PDF:', error);
+      throw new Error(`Failed to generate sales report PDF: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
-      await browser.close()
+      if (browser) {
+        await browser.close();
+      }
     }
   } catch (e) {
     console.error('Sales report pdf error:', e)
-    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Failed to generate PDF',
+      details: e instanceof Error ? e.message : String(e)
+    }, { status: 500 })
   }
 }
 

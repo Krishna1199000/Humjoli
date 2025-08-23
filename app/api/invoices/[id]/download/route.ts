@@ -13,9 +13,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('Starting invoice PDF generation for ID:', params.id)
+    
     const session = await getServerSession(authOptions)
     
     if (!session || session.user.role !== "ADMIN") {
+      console.log('Unauthorized access attempt')
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -34,8 +37,11 @@ export async function GET(
     })
 
     if (!invoice) {
+      console.log('Invoice not found:', id)
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
     }
+
+    console.log('Invoice found, preparing data for PDF generation')
 
     // Format dates for PDF
     const formatDate = (date: Date) => {
@@ -79,8 +85,12 @@ export async function GET(
       }))
     }
 
+    console.log('Generating PDF...')
+    
     // Generate PDF
     const pdfBuffer = await generateInvoicePDF(pdfData)
+    
+    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes')
 
     // Return PDF as response
     return new NextResponse(pdfBuffer, {
@@ -92,6 +102,9 @@ export async function GET(
     })
   } catch (error) {
     console.error("Error generating PDF:", error)
-    return NextResponse.json({ error: "Failed to generate PDF" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to generate PDF",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
   }
 } 

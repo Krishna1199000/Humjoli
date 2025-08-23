@@ -29,7 +29,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import toast from "react-hot-toast"
 import AdminNavbar from "@/components/AdminNavbar"
 
@@ -78,6 +78,7 @@ export default function AdminDashboardPage() {
   })
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([])
   const [mounted, setMounted] = useState(false)
+  const errorToastIdRef = useRef<string | null>(null)
 
   // Ensure component is mounted on client side
   useEffect(() => {
@@ -119,6 +120,17 @@ export default function AdminDashboardPage() {
     },
   ]
 
+  const fetchWithTimeout = async (input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const res = await fetch(input, { ...init, signal: controller.signal })
+      return res
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
@@ -133,13 +145,13 @@ export default function AdminDashboardPage() {
         attendanceResponse,
         invoicesResponse
       ] = await Promise.all([
-        fetch('/api/auth/users'),
-        fetch('/api/employees'),
-        fetch('/api/inventory'),
-        fetch('/api/customers'),
-        fetch('/api/salary'),
-        fetch('/api/attendance'),
-        fetch('/api/invoices')
+        fetchWithTimeout('/api/auth/users'),
+        fetchWithTimeout('/api/employees'),
+        fetchWithTimeout('/api/inventory'),
+        fetchWithTimeout('/api/customers'),
+        fetchWithTimeout('/api/salary'),
+        fetchWithTimeout('/api/attendance'),
+        fetchWithTimeout('/api/invoices')
       ])
 
       const users = usersResponse.ok ? await usersResponse.json() : []
@@ -175,8 +187,17 @@ export default function AdminDashboardPage() {
       })
       setRecentUsers(recentUsersData)
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      toast.error('Failed to load dashboard data')
+      // Avoid sticky toasts; auto-dismiss after 5s
+      if (!errorToastIdRef.current) {
+        const id = toast.error('Failed to load dashboard data', { duration: 4000 })
+        errorToastIdRef.current = id as unknown as string
+        setTimeout(() => {
+          if (errorToastIdRef.current) {
+            toast.dismiss(errorToastIdRef.current)
+            errorToastIdRef.current = null
+          }
+        }, 5000)
+      }
     } finally {
       setLoading(false)
     }
@@ -185,6 +206,12 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (mounted) {
       fetchDashboardData()
+    }
+    return () => {
+      if (errorToastIdRef.current) {
+        toast.dismiss(errorToastIdRef.current)
+        errorToastIdRef.current = null
+      }
     }
   }, [mounted])
 
