@@ -757,7 +757,7 @@ async function generateSimpleTextPDF(data: InvoiceData): Promise<Buffer> {
     browser = await puppeteer.launch(launchOptions);
     page = await browser.newPage();
     
-    // Generate super simple HTML with inline styles
+    // Generate compact single-page HTML
     const simpleHTML = `
       <!DOCTYPE html>
       <html>
@@ -767,18 +767,73 @@ async function generateSimpleTextPDF(data: InvoiceData): Promise<Buffer> {
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { 
             font-family: Arial, sans-serif; 
-            font-size: 12px; 
-            line-height: 1.4; 
+            font-size: 10px; 
+            line-height: 1.2; 
             color: #000; 
-            padding: 20px;
+            padding: 10px;
+            max-height: 297mm;
+            overflow: hidden;
           }
-          .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #000; padding-bottom: 10px; }
-          .row { margin: 8px 0; }
-          .label { font-weight: bold; display: inline-block; width: 120px; }
-          .section { margin: 15px 0; padding: 10px; border: 1px solid #000; }
-          .items { margin: 20px 0; }
-          .item { border-bottom: 1px solid #ccc; padding: 5px 0; }
-          .total { font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
+          .header { 
+            text-align: center; 
+            margin-bottom: 10px; 
+            border-bottom: 1px solid #000; 
+            padding-bottom: 5px; 
+          }
+          .header h1 { font-size: 14px; margin-bottom: 3px; }
+          .header h2 { font-size: 12px; margin-bottom: 3px; }
+          .header p { font-size: 9px; }
+          
+          .main-container { display: flex; gap: 10px; margin-bottom: 10px; }
+          .left-column, .right-column { flex: 1; }
+          
+          .section { 
+            margin: 5px 0; 
+            padding: 5px; 
+            border: 1px solid #000; 
+            font-size: 9px;
+          }
+          .section h3 { font-size: 10px; margin-bottom: 3px; }
+          .row { margin: 2px 0; }
+          .label { font-weight: bold; display: inline-block; width: 80px; }
+          
+          .items { margin: 5px 0; }
+          .item { 
+            border-bottom: 1px solid #ccc; 
+            padding: 2px 0; 
+            font-size: 8px;
+          }
+          .total { 
+            font-weight: bold; 
+            border-top: 1px solid #000; 
+            padding-top: 3px; 
+            margin-top: 5px; 
+          }
+          
+          .bottom-section { margin-top: 10px; }
+          .terms { 
+            margin: 5px 0; 
+            font-size: 7px; 
+            line-height: 1.1;
+          }
+          .terms p { margin: 1px 0; }
+          
+          .signatures { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-top: 10px;
+          }
+          .signature-box { 
+            text-align: center; 
+            border: 1px solid #000; 
+            padding: 8px; 
+            width: 45%; 
+            font-size: 8px;
+          }
+          .signature-line { 
+            border-top: 1px solid #000; 
+            margin-top: 15px; 
+          }
         </style>
       </head>
       <body>
@@ -788,79 +843,82 @@ async function generateSimpleTextPDF(data: InvoiceData): Promise<Buffer> {
           <h2>INVOICE - ${data.quotationNo}</h2>
         </div>
         
-        <div class="section">
-          <h3>CUSTOMER DETAILS</h3>
-          <div class="row"><span class="label">Name:</span> ${data.customerName}</div>
-          <div class="row"><span class="label">Address:</span> ${data.customerAddress}</div>
-          <div class="row"><span class="label">Phone:</span> ${data.customerTel}</div>
-          <div class="row"><span class="label">State:</span> ${data.customerState}</div>
-          <div class="row"><span class="label">State Code:</span> ${data.customerStateCode}</div>
-          <div class="row"><span class="label">GSTIN:</span> ${data.customerGSTIN || 'N/A'}</div>
-          <div class="row"><span class="label">Reference:</span> ${data.refName || 'N/A'}</div>
-        </div>
-        
-        <div class="section">
-          <h3>EVENT DETAILS</h3>
-          <div class="row"><span class="label">Quotation No:</span> ${data.quotationNo}</div>
-          <div class="row"><span class="label">Booking Date:</span> ${data.bookingDate}</div>
-          <div class="row"><span class="label">Event Date:</span> ${data.eventDate}</div>
-          <div class="row"><span class="label">Time:</span> ${data.startTime} to ${data.endTime}</div>
-          <div class="row"><span class="label">Manager:</span> ${data.manager || 'N/A'}</div>
-        </div>
-        
-        <div class="section">
-          <h3>ITEMS & SERVICES</h3>
-          <div class="items">
-            ${data.items.map((item, index) => `
-              <div class="item">
-                <strong>${index + 1}. ${item.particular}</strong><br>
-                Quantity: ${item.quantity} | Rate: ₹${item.rent} | Amount: ₹${item.amount}
+        <div class="main-container">
+          <div class="left-column">
+            <div class="section">
+              <h3>CUSTOMER DETAILS</h3>
+              <div class="row"><span class="label">Name:</span> ${data.customerName}</div>
+              <div class="row"><span class="label">Address:</span> ${data.customerAddress}</div>
+              <div class="row"><span class="label">Phone:</span> ${data.customerTel}</div>
+              <div class="row"><span class="label">State:</span> ${data.customerState}</div>
+              <div class="row"><span class="label">State Code:</span> ${data.customerStateCode}</div>
+              <div class="row"><span class="label">GSTIN:</span> ${data.customerGSTIN || 'N/A'}</div>
+              <div class="row"><span class="label">Reference:</span> ${data.refName || 'N/A'}</div>
+            </div>
+            
+            <div class="section">
+              <h3>EVENT DETAILS</h3>
+              <div class="row"><span class="label">Quotation No:</span> ${data.quotationNo}</div>
+              <div class="row"><span class="label">Booking Date:</span> ${data.bookingDate}</div>
+              <div class="row"><span class="label">Event Date:</span> ${data.eventDate}</div>
+              <div class="row"><span class="label">Time:</span> ${data.startTime} to ${data.endTime}</div>
+              <div class="row"><span class="label">Manager:</span> ${data.manager || 'N/A'}</div>
+            </div>
+          </div>
+          
+          <div class="right-column">
+            <div class="section">
+              <h3>ITEMS & SERVICES</h3>
+              <div class="items">
+                ${data.items.map((item, index) => `
+                  <div class="item">
+                    <strong>${index + 1}. ${item.particular}</strong><br>
+                    Qty: ${item.quantity} | Rate: ₹${item.rent} | Amount: ₹${item.amount}
+                  </div>
+                `).join('')}
               </div>
-            `).join('')}
+              <div class="total">
+                <div class="row"><span class="label">Total Qty:</span> ${data.items.reduce((sum, item) => sum + item.quantity, 0)}</div>
+                <div class="row"><span class="label">Total Amount:</span> ₹${data.totalAmount}</div>
+              </div>
+            </div>
+            
+            <div class="section">
+              <h3>TAXATION & PAYMENT</h3>
+              <div class="row"><span class="label">SAC Code:</span> ${data.sacCode}</div>
+              <div class="row"><span class="label">Taxable Amt:</span> ₹${data.taxableAmount}</div>
+              <div class="row"><span class="label">CGST:</span> ₹${data.cgstAmount}</div>
+              <div class="row"><span class="label">SGST:</span> ₹${data.sgstAmount}</div>
+              <div class="row"><strong>TOTAL: ₹${data.totalAmount}</strong></div>
+              <div class="row"><span class="label">Advance:</span> ₹${data.advanceAmount}</div>
+              <div class="row"><span class="label">Balance:</span> ₹${data.balanceAmount}</div>
+              <div class="row"><span class="label">In Words:</span> ${data.invoiceValueInWords}</div>
+            </div>
           </div>
-          <div class="total">
-            <div class="row"><span class="label">Total Quantity:</span> ${data.items.reduce((sum, item) => sum + item.quantity, 0)}</div>
-            <div class="row"><span class="label">Total Amount:</span> ₹${data.totalAmount}</div>
+        </div>
+        
+        <div class="bottom-section">
+          <div class="section">
+            <h3>TERMS & CONDITIONS</h3>
+            <div class="terms">
+              <p>1. Once Order taken will not be cancelled</p>
+              <p>2. All Item will chargeable for Two Hours (except SAFA/Pagdi)</p>
+              <p>3. In case of delay extra hours will be chargeable.</p>
+              <p>4. Missing of Safa will be chargeable (responsibility of customer)</p>
+              <p>5. BOOKING ADVANCE 50% & BALANCE AMOUNT SHOULD BE PAID ON VENUE</p>
+            </div>
           </div>
-        </div>
-        
-        <div class="section">
-          <h3>TAXATION</h3>
-          <div class="row"><span class="label">SAC Code:</span> ${data.sacCode}</div>
-          <div class="row"><span class="label">Taxable Amount:</span> ₹${data.taxableAmount}</div>
-          <div class="row"><span class="label">CGST:</span> ₹${data.cgstAmount}</div>
-          <div class="row"><span class="label">SGST:</span> ₹${data.sgstAmount}</div>
-          <div class="row"><strong>TOTAL: ₹${data.totalAmount}</strong></div>
-        </div>
-        
-        <div class="section">
-          <h3>PAYMENT DETAILS</h3>
-          <div class="row"><span class="label">Advance:</span> ₹${data.advanceAmount}</div>
-          <div class="row"><span class="label">Balance:</span> ₹${data.balanceAmount}</div>
-          <div class="row"><span class="label">Amount in Words:</span> ${data.invoiceValueInWords}</div>
-          <div class="row"><span class="label">Remarks:</span> ${data.remarks || 'N/A'}</div>
-        </div>
-        
-        <div class="section">
-          <h3>TERMS & CONDITIONS</h3>
-          <p>1. Once Order taken will not be cancelled</p>
-          <p>2. All Item will chargeable for Two Hours (except SAFA/Pagdi)</p>
-          <p>3. In case of delay extra hours will be chargeable.</p>
-          <p>4. Missing of Safa will be chargeable (responsibility of customer)</p>
-          <p>5. BOOKING ADVANCE 50% & BALANCE AMOUNT SHOULD BE PAID ON VENUE</p>
-        </div>
-        
-        <div style="margin-top: 40px; display: flex; justify-content: space-between;">
-          <div style="text-align: center; border: 1px solid #000; padding: 20px; width: 45%;">
-            <p>Customer's Signature</p>
-            <br><br>
-            <div style="border-top: 1px solid #000; margin-top: 20px;"></div>
-          </div>
-          <div style="text-align: center; border: 1px solid #000; padding: 20px; width: 45%;">
-            <p>For HUMJOLI EVENTS</p>
-            <p>Authorised Signatory</p>
-            <br>
-            <div style="border-top: 1px solid #000; margin-top: 20px;"></div>
+          
+          <div class="signatures">
+            <div class="signature-box">
+              <p>Customer's Signature</p>
+              <div class="signature-line"></div>
+            </div>
+            <div class="signature-box">
+              <p>For HUMJOLI EVENTS</p>
+              <p>Authorised Signatory</p>
+              <div class="signature-line"></div>
+            </div>
           </div>
         </div>
       </body>
