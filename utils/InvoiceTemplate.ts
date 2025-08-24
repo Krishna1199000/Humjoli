@@ -444,6 +444,11 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   // Define approaches to try in order
   const approaches = [
     {
+      name: 'Simple Text PDF',
+      fn: () => generateSimpleTextPDF(data),
+      condition: () => true // Always try this first for reliability
+    },
+    {
       name: 'Production Chromium',
       fn: () => generateInvoicePDFWithChromium(data),
       condition: () => process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
@@ -498,10 +503,10 @@ async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer
   try {
     console.log('Using @sparticuz/chromium for production...');
     
-    // Configure Chromium for production (Vercel)
-    await chromium.font('https://raw.githubusercontent.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+    // Skip font loading to avoid delays and potential issues
+    console.log('Skipping font loading for faster rendering...');
     
-    // Launch browser with proper production configuration
+    // Launch browser with minimal configuration for better compatibility
     browser = await puppeteerCore.launch({
       args: [
         ...chromium.args,
@@ -515,38 +520,50 @@ async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer
         '--disable-software-rasterizer',
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding'
+        '--disable-renderer-backgrounding',
+        '--disable-extensions',
+        '--disable-plugins',
+        '--disable-images', // Disable images for faster rendering
+        '--run-all-compositor-stages-before-draw',
+        '--disable-background-networking'
       ],
-      defaultViewport: { width: 1200, height: 800 },
+      defaultViewport: { width: 1200, height: 1600 }, // Increased height for better rendering
       executablePath: await chromium.executablePath(),
       headless: true,
+      timeout: 60000, // Increased timeout
     });
 
     page = await browser.newPage();
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(60000); // Increased timeout
     
     const html = generateInvoiceHTML(data);
     
     console.log('Setting HTML content...');
+    // Set content with basic wait
     await page.setContent(html, { 
-      waitUntil: 'networkidle0',
+      waitUntil: 'domcontentloaded', // Changed from networkidle0 to domcontentloaded for faster loading
       timeout: 30000 
     });
     
-    // Wait for fonts and images to load
-    console.log('Waiting for assets to load...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Force wait for content to render
+    console.log('Waiting for content to render...');
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Increased wait time
     
-    // Ensure the page is fully rendered
-    await page.evaluate(() => {
-      return new Promise((resolve) => {
-        if (document.readyState === 'complete') {
-          resolve(true);
-        } else {
-          window.addEventListener('load', () => resolve(true));
-        }
-      });
+    // Verify content is present using page evaluation
+    const contentCheck = await page.evaluate(() => {
+      const customerName = document.querySelector('body')?.textContent?.includes('Customer Details');
+      const itemsTable = document.querySelector('.items-table');
+      const hasData = document.body.textContent && document.body.textContent.length > 100;
+      
+      console.log('Content check:', { customerName, hasItemsTable: !!itemsTable, hasData });
+      return { customerName, hasItemsTable: !!itemsTable, hasData };
     });
+    
+    console.log('Content verification:', contentCheck);
+    
+    if (!contentCheck.hasData) {
+      console.warn('⚠️ Page content appears to be empty, generating anyway...');
+    }
     
     console.log('Generating PDF...');
     const pdf = await page.pdf({
@@ -554,10 +571,16 @@ async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer
       margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
       printBackground: true,
       preferCSSPageSize: false,
-      displayHeaderFooter: false
+      displayHeaderFooter: false,
+      timeout: 30000 // Add timeout for PDF generation
     });
     
     console.log('Production PDF generated successfully, size:', pdf.length, 'bytes');
+    
+    if (pdf.length < 1000) {
+      console.warn('⚠️ Generated PDF seems very small, might be empty');
+    }
+    
     return Buffer.from(pdf);
   } catch (error) {
     console.error('Production Chromium approach failed:', error);
@@ -693,6 +716,183 @@ async function generateInvoicePDFSimple(data: InvoiceData): Promise<Buffer> {
       try { await browser.close(); } catch (e) {}
     }
   }
-} 
+}
+
+// Simple text-based PDF generation using minimal HTML
+async function generateSimpleTextPDF(data: InvoiceData): Promise<Buffer> {
+  let browser;
+  let page;
+  
+  try {
+    console.log('Using simple text PDF generation...');
+    
+    // Try to use puppeteer directly first
+    let puppeteer;
+    try {
+      puppeteer = (await import('puppeteer')).default;
+    } catch {
+      // Fallback to puppeteer-core for production
+      puppeteer = puppeteerCore;
+    }
+    
+    // Minimal browser configuration
+    const launchOptions: any = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--disable-web-security'
+      ],
+      timeout: 30000
+    };
+    
+    // Add executable path for production
+    if (process.env.VERCEL === '1' || process.env.NODE_ENV === 'production') {
+      launchOptions.executablePath = await chromium.executablePath();
+      launchOptions.args = [...chromium.args, ...launchOptions.args];
+    }
+    
+    browser = await puppeteer.launch(launchOptions);
+    page = await browser.newPage();
+    
+    // Generate super simple HTML with inline styles
+    const simpleHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: Arial, sans-serif; 
+            font-size: 12px; 
+            line-height: 1.4; 
+            color: #000; 
+            padding: 20px;
+          }
+          .header { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #000; padding-bottom: 10px; }
+          .row { margin: 8px 0; }
+          .label { font-weight: bold; display: inline-block; width: 120px; }
+          .section { margin: 15px 0; padding: 10px; border: 1px solid #000; }
+          .items { margin: 20px 0; }
+          .item { border-bottom: 1px solid #ccc; padding: 5px 0; }
+          .total { font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>HUMJOLI EVENTS</h1>
+          <p>State: Maharashtra | State Code: 27 | GSTIN: 27ADOPA7853Q1ZR</p>
+          <h2>INVOICE - ${data.quotationNo}</h2>
+        </div>
+        
+        <div class="section">
+          <h3>CUSTOMER DETAILS</h3>
+          <div class="row"><span class="label">Name:</span> ${data.customerName}</div>
+          <div class="row"><span class="label">Address:</span> ${data.customerAddress}</div>
+          <div class="row"><span class="label">Phone:</span> ${data.customerTel}</div>
+          <div class="row"><span class="label">State:</span> ${data.customerState}</div>
+          <div class="row"><span class="label">State Code:</span> ${data.customerStateCode}</div>
+          <div class="row"><span class="label">GSTIN:</span> ${data.customerGSTIN || 'N/A'}</div>
+          <div class="row"><span class="label">Reference:</span> ${data.refName || 'N/A'}</div>
+        </div>
+        
+        <div class="section">
+          <h3>EVENT DETAILS</h3>
+          <div class="row"><span class="label">Quotation No:</span> ${data.quotationNo}</div>
+          <div class="row"><span class="label">Booking Date:</span> ${data.bookingDate}</div>
+          <div class="row"><span class="label">Event Date:</span> ${data.eventDate}</div>
+          <div class="row"><span class="label">Time:</span> ${data.startTime} to ${data.endTime}</div>
+          <div class="row"><span class="label">Manager:</span> ${data.manager || 'N/A'}</div>
+        </div>
+        
+        <div class="section">
+          <h3>ITEMS & SERVICES</h3>
+          <div class="items">
+            ${data.items.map((item, index) => `
+              <div class="item">
+                <strong>${index + 1}. ${item.particular}</strong><br>
+                Quantity: ${item.quantity} | Rate: ₹${item.rent} | Amount: ₹${item.amount}
+              </div>
+            `).join('')}
+          </div>
+          <div class="total">
+            <div class="row"><span class="label">Total Quantity:</span> ${data.items.reduce((sum, item) => sum + item.quantity, 0)}</div>
+            <div class="row"><span class="label">Total Amount:</span> ₹${data.totalAmount}</div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <h3>TAXATION</h3>
+          <div class="row"><span class="label">SAC Code:</span> ${data.sacCode}</div>
+          <div class="row"><span class="label">Taxable Amount:</span> ₹${data.taxableAmount}</div>
+          <div class="row"><span class="label">CGST:</span> ₹${data.cgstAmount}</div>
+          <div class="row"><span class="label">SGST:</span> ₹${data.sgstAmount}</div>
+          <div class="row"><strong>TOTAL: ₹${data.totalAmount}</strong></div>
+        </div>
+        
+        <div class="section">
+          <h3>PAYMENT DETAILS</h3>
+          <div class="row"><span class="label">Advance:</span> ₹${data.advanceAmount}</div>
+          <div class="row"><span class="label">Balance:</span> ₹${data.balanceAmount}</div>
+          <div class="row"><span class="label">Amount in Words:</span> ${data.invoiceValueInWords}</div>
+          <div class="row"><span class="label">Remarks:</span> ${data.remarks || 'N/A'}</div>
+        </div>
+        
+        <div class="section">
+          <h3>TERMS & CONDITIONS</h3>
+          <p>1. Once Order taken will not be cancelled</p>
+          <p>2. All Item will chargeable for Two Hours (except SAFA/Pagdi)</p>
+          <p>3. In case of delay extra hours will be chargeable.</p>
+          <p>4. Missing of Safa will be chargeable (responsibility of customer)</p>
+          <p>5. BOOKING ADVANCE 50% & BALANCE AMOUNT SHOULD BE PAID ON VENUE</p>
+        </div>
+        
+        <div style="margin-top: 40px; display: flex; justify-content: space-between;">
+          <div style="text-align: center; border: 1px solid #000; padding: 20px; width: 45%;">
+            <p>Customer's Signature</p>
+            <br><br>
+            <div style="border-top: 1px solid #000; margin-top: 20px;"></div>
+          </div>
+          <div style="text-align: center; border: 1px solid #000; padding: 20px; width: 45%;">
+            <p>For HUMJOLI EVENTS</p>
+            <p>Authorised Signatory</p>
+            <br>
+            <div style="border-top: 1px solid #000; margin-top: 20px;"></div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    console.log('Setting simple HTML content...');
+    await page.setContent(simpleHTML, { waitUntil: 'domcontentloaded' });
+    
+    // Short wait for rendering
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    console.log('Generating simple PDF...');
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' },
+      printBackground: true
+    });
+    
+    console.log('Simple text PDF generated successfully, size:', pdf.length, 'bytes');
+    return Buffer.from(pdf);
+  } catch (error) {
+    console.error('Simple text PDF approach failed:', error);
+    throw error;
+  } finally {
+    if (page) {
+      try { await page.close(); } catch (e) {}
+    }
+    if (browser) {
+      try { await browser.close(); } catch (e) {}
+    }
+  }
+}
 
  
