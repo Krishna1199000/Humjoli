@@ -13,18 +13,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('=== PDF DOWNLOAD DEBUG START ===')
     console.log('Starting invoice PDF generation for ID:', params.id)
     
     const session = await getServerSession(authOptions)
     
     if (!session || session.user.role !== "ADMIN") {
-      console.log('Unauthorized access attempt')
+      console.log('❌ Unauthorized access attempt')
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { id } = params
 
     // Fetch invoice with items
+    console.log('Fetching invoice from database...')
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -37,9 +39,18 @@ export async function GET(
     })
 
     if (!invoice) {
-      console.log('Invoice not found:', id)
+      console.log('❌ Invoice not found:', id)
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
     }
+
+    console.log('✅ Invoice found in database')
+    console.log('Invoice basic info:', {
+      id: invoice.id,
+      quotationNo: invoice.quotationNo,
+      customerName: invoice.customerName,
+      itemsCount: invoice.items?.length || 0
+    })
+    console.log('Full invoice data:', JSON.stringify(invoice, null, 2))
 
     console.log('Invoice found, preparing data for PDF generation')
 
@@ -90,18 +101,24 @@ export async function GET(
       }))
     }
 
-    console.log('Generating PDF with data:', JSON.stringify(pdfData, null, 2))
+    console.log('=== PDF DATA PREPARED ===')
+    console.log('PDF data being sent to generator:', JSON.stringify(pdfData, null, 2))
+    console.log('Items count in PDF data:', pdfData.items.length)
+    console.log('Sample items:', pdfData.items.slice(0, 2))
     
     // Generate PDF
+    console.log('Calling generateInvoicePDF...')
     const pdfBuffer = await generateInvoicePDF(pdfData)
     
-    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes')
+    console.log('✅ PDF generated successfully, size:', pdfBuffer.length, 'bytes')
     
     if (pdfBuffer.length === 0) {
+      console.error('❌ Generated PDF is empty!')
       throw new Error('Generated PDF is empty')
     }
 
     // Return PDF as response
+    console.log('=== PDF DOWNLOAD DEBUG COMPLETE ===')
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
@@ -113,7 +130,8 @@ export async function GET(
       }
     })
   } catch (error) {
-    console.error("Error generating PDF:", error)
+    console.error("❌ Error generating PDF:", error)
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json({ 
       error: "Failed to generate PDF",
       details: error instanceof Error ? error.message : String(error)

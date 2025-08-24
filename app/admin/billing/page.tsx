@@ -145,32 +145,41 @@ export default function BillingPage() {
     setPreviewLoading(true)
     setPreviewOpen(true)
     try {
+      console.log('=== STARTING PREVIEW DEBUG ===')
       console.log('Opening preview for invoice:', invoiceId)
       
       // First fetch invoice metadata
       const metaRes = await fetch(`/api/invoices/${invoiceId}`)
       if (!metaRes.ok) {
         const errorText = await metaRes.text()
+        console.error('Metadata fetch failed:', errorText)
         throw new Error(`Failed to load invoice: ${errorText}`)
       }
       const json = await metaRes.json()
-      console.log('Invoice metadata loaded:', json)
+      console.log('=== INVOICE METADATA ===')
+      console.log('Full invoice data:', json)
+      console.log('Items count:', json.items?.length || 0)
+      console.log('Items data:', json.items)
+      console.log('Customer name:', json.customerName)
+      console.log('Total amount:', json.totalAmount)
       
       // Check if items exist
       if (!json.items || json.items.length === 0) {
-        console.warn('Invoice has no items:', json)
+        console.warn('⚠️ INVOICE HAS NO ITEMS!')
+        console.warn('Invoice data:', json)
       } else {
-        console.log('Invoice items:', json.items)
+        console.log('✅ Invoice has items:', json.items)
       }
       
       setPreviewInvoice(json)
       setStatusEdit((json.status as 'PENDING' | 'PAID') || 'PENDING')
       
       // Then fetch PDF
+      console.log('=== FETCHING PDF ===')
       const pdfRes = await fetch(`/api/invoices/${invoiceId}/download`)
       if (!pdfRes.ok) {
         const errorText = await pdfRes.text()
-        console.error('PDF response error:', errorText)
+        console.error('❌ PDF response error:', errorText)
         throw new Error(`Failed to load PDF: ${errorText}`)
       }
       
@@ -183,15 +192,17 @@ export default function BillingPage() {
       console.log('PDF blob type:', blob.type)
       
       if (blob.size === 0) {
+        console.error('❌ Generated PDF is empty!')
         throw new Error('Generated PDF is empty')
       }
       
       // Create URL with proper type
       const url = URL.createObjectURL(blob)
       setPreviewPdfUrl(url)
-      console.log('Preview URL created:', url)
+      console.log('✅ Preview URL created:', url)
+      console.log('=== PREVIEW DEBUG COMPLETE ===')
     } catch (e) {
-      console.error('Preview error:', e)
+      console.error('❌ Preview error:', e)
       toast.error(`Failed to open invoice preview: ${e instanceof Error ? e.message : String(e)}`)
       setPreviewOpen(false)
     } finally { 
@@ -370,6 +381,16 @@ export default function BillingPage() {
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
                       >
                         Test HTML
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          if (previewInvoice) {
+                            window.open(`/api/debug-invoice/${previewInvoice.id}`, '_blank');
+                          }
+                        }} 
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
+                      >
+                        Raw Data
                       </Button>
                       <Button onClick={()=>setPreviewOpen(false)} className="btn-ghost p-2"><X className="h-4 w-4"/></Button>
                 </div>

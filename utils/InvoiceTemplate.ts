@@ -36,26 +36,27 @@ interface InvoiceData {
 }
 
 function generateInvoiceHTML(data: InvoiceData): string {
+  console.log('=== HTML GENERATION DEBUG START ===')
   console.log('Generating HTML with data:', JSON.stringify(data, null, 2));
   
   // Validate data
   if (!data.items || data.items.length === 0) {
-    console.warn('No items found in invoice data');
+    console.warn('❌ No items found in invoice data');
     data.items = [{ srl: 1, particular: 'No items', quantity: 0, rent: 0, amount: 0 }];
   }
   
   // Validate required fields
   if (!data.customerName) {
-    console.warn('Customer name is missing');
+    console.warn('❌ Customer name is missing');
     data.customerName = 'Unknown Customer';
   }
   
   if (!data.quotationNo) {
-    console.warn('Quotation number is missing');
+    console.warn('❌ Quotation number is missing');
     data.quotationNo = 'N/A';
   }
   
-  console.log('Validated data:', {
+  console.log('✅ Validated data:', {
     customerName: data.customerName,
     quotationNo: data.quotationNo,
     itemsCount: data.items.length,
@@ -74,7 +75,10 @@ function generateInvoiceHTML(data: InvoiceData): string {
       .replace(/'/g, '&#039;');
   };
   
-  const itemsHTML = data.items.map(item => `
+  console.log('Processing items...')
+  const itemsHTML = data.items.map((item, index) => {
+    console.log(`Item ${index + 1}:`, item);
+    return `
     <tr>
       <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml(item.srl || '')}</td>
       <td style="text-align: left; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml(item.particular || '')}</td>
@@ -82,14 +86,15 @@ function generateInvoiceHTML(data: InvoiceData): string {
       <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml((item.rent || 0).toFixed(2))}</td>
       <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml((item.amount || 0).toFixed(2))}</td>
     </tr>
-  `).join('')
+  `}).join('')
 
   const totalQty = data.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
   
-  console.log('Generated items HTML length:', itemsHTML.length);
-  console.log('Total quantity:', totalQty);
-  console.log('Sample items HTML:', itemsHTML.substring(0, 200) + '...');
+  console.log('✅ Generated items HTML length:', itemsHTML.length);
+  console.log('✅ Total quantity:', totalQty);
+  console.log('✅ Sample items HTML:', itemsHTML.substring(0, 200) + '...');
 
+  console.log('Building full HTML...')
   const html = `
     <!DOCTYPE html>
     <html>
@@ -425,8 +430,9 @@ function generateInvoiceHTML(data: InvoiceData): string {
     </html>
   `;
   
-  console.log('Generated HTML length:', html.length);
-  console.log('HTML preview (first 500 chars):', html.substring(0, 500));
+  console.log('✅ Generated HTML length:', html.length);
+  console.log('✅ HTML preview (first 500 chars):', html.substring(0, 500));
+  console.log('=== HTML GENERATION DEBUG COMPLETE ===')
   
   return html;
 }
