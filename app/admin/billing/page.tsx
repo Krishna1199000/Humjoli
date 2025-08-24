@@ -361,6 +361,16 @@ export default function BillingPage() {
                       <Button onClick={()=>setDebugMode(!debugMode)} className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center text-xs">
                         {debugMode ? 'PDF' : 'Debug'}
                       </Button>
+                      <Button 
+                        onClick={() => {
+                          if (previewInvoice) {
+                            window.open(`/api/test-pdf?id=${previewInvoice.id}`, '_blank');
+                          }
+                        }} 
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
+                      >
+                        Test HTML
+                      </Button>
                       <Button onClick={()=>setPreviewOpen(false)} className="btn-ghost p-2"><X className="h-4 w-4"/></Button>
                 </div>
                   </div>

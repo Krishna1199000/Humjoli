@@ -62,27 +62,40 @@ function generateInvoiceHTML(data: InvoiceData): string {
     totalAmount: data.totalAmount
   });
   
+  // Ensure all data is properly escaped for HTML
+  const escapeHtml = (text: string | number | null | undefined): string => {
+    if (text === null || text === undefined) return '';
+    const str = String(text);
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+  
   const itemsHTML = data.items.map(item => `
     <tr>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.srl || ''}</td>
-      <td style="text-align: left; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.particular || ''}</td>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.quantity || 0}</td>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${(item.rent || 0).toFixed(2)}</td>
-      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${(item.amount || 0).toFixed(2)}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml(item.srl || '')}</td>
+      <td style="text-align: left; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml(item.particular || '')}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml(item.quantity || 0)}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml((item.rent || 0).toFixed(2))}</td>
+      <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${escapeHtml((item.amount || 0).toFixed(2))}</td>
     </tr>
   `).join('')
 
-  const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalQty = data.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
   
   console.log('Generated items HTML length:', itemsHTML.length);
   console.log('Total quantity:', totalQty);
+  console.log('Sample items HTML:', itemsHTML.substring(0, 200) + '...');
 
-  return `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
-      <title>Invoice ${data.quotationNo}</title>
+      <title>Invoice ${escapeHtml(data.quotationNo)}</title>
       <style>
         body {
           font-family: Arial, sans-serif;
@@ -254,31 +267,31 @@ function generateInvoiceHTML(data: InvoiceData): string {
           <div class="section-title">Customer Details</div>
           <div class="detail-row">
             <span class="label">Name:</span>
-            <span class="value">${data.customerName}</span>
+            <span class="value">${escapeHtml(data.customerName)}</span>
           </div>
           <div class="detail-row">
             <span class="label">Address:</span>
-            <span class="value">${data.customerAddress}</span>
+            <span class="value">${escapeHtml(data.customerAddress)}</span>
           </div>
           <div class="detail-row">
             <span class="label">Tel:</span>
-            <span class="value">${data.customerTel}</span>
+            <span class="value">${escapeHtml(data.customerTel)}</span>
           </div>
           <div class="detail-row">
             <span class="label">State:</span>
-            <span class="value">${data.customerState}</span>
+            <span class="value">${escapeHtml(data.customerState)}</span>
           </div>
           <div class="detail-row">
             <span class="label">State Code:</span>
-            <span class="value">${data.customerStateCode}</span>
+            <span class="value">${escapeHtml(data.customerStateCode)}</span>
           </div>
           <div class="detail-row">
             <span class="label">GSTIN:</span>
-            <span class="value">${data.customerGSTIN || '-'}</span>
+            <span class="value">${escapeHtml(data.customerGSTIN || '-')}</span>
           </div>
           <div class="detail-row">
             <span class="label">Ref Name:</span>
-            <span class="value">${data.refName || '-'}</span>
+            <span class="value">${escapeHtml(data.refName || '-')}</span>
           </div>
         </div>
 
@@ -286,27 +299,27 @@ function generateInvoiceHTML(data: InvoiceData): string {
           <div class="section-title">Booking Details</div>
           <div class="detail-row">
             <span class="label">Quotation No:</span>
-            <span class="value">${data.quotationNo}</span>
+            <span class="value">${escapeHtml(data.quotationNo)}</span>
           </div>
           <div class="detail-row">
             <span class="label">Booking Date:</span>
-            <span class="value">${data.bookingDate}</span>
+            <span class="value">${escapeHtml(data.bookingDate)}</span>
           </div>
           <div class="detail-row">
             <span class="label">Event Date:</span>
-            <span class="value">${data.eventDate}</span>
+            <span class="value">${escapeHtml(data.eventDate)}</span>
           </div>
           <div class="detail-row">
             <span class="label">Start Time:</span>
-            <span class="value">${data.startTime}</span>
+            <span class="value">${escapeHtml(data.startTime)}</span>
           </div>
           <div class="detail-row">
             <span class="label">End Time:</span>
-            <span class="value">${data.endTime}</span>
+            <span class="value">${escapeHtml(data.endTime)}</span>
           </div>
           <div class="detail-row">
             <span class="label">Manager:</span>
-            <span class="value">${data.manager || '-'}</span>
+            <span class="value">${escapeHtml(data.manager || '-')}</span>
           </div>
         </div>
       </div>
@@ -326,9 +339,9 @@ function generateInvoiceHTML(data: InvoiceData): string {
           <tr>
             <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold; font-size: 9px;">TOTAL</td>
             <td style="text-align: left; border: 1px solid #000; padding: 4px;"></td>
-            <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold; font-size: 9px;">${totalQty}</td>
+            <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold; font-size: 9px;">${escapeHtml(totalQty)}</td>
             <td style="text-align: center; border: 1px solid #000; padding: 4px;"></td>
-            <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold; font-size: 9px;">₹ ${data.totalAmount.toFixed(2)}</td>
+            <td style="text-align: center; border: 1px solid #000; padding: 4px; font-weight: bold; font-size: 9px;">₹ ${escapeHtml((data.totalAmount || 0).toFixed(2))}</td>
           </tr>
         </tbody>
       </table>
@@ -347,23 +360,23 @@ function generateInvoiceHTML(data: InvoiceData): string {
         </thead>
         <tbody>
           <tr>
-            <td>${data.sacCode}</td>
-            <td>${data.taxableAmount.toFixed(2)}</td>
+            <td>${escapeHtml(data.sacCode)}</td>
+            <td>${escapeHtml((data.taxableAmount || 0).toFixed(2))}</td>
             <td>0.00 %</td>
             <td>0.00</td>
             <td>0.00 %</td>
             <td>0.00</td>
-            <td>${data.totalAmount.toFixed(2)}</td>
+            <td>${escapeHtml((data.totalAmount || 0).toFixed(2))}</td>
           </tr>
         </tbody>
       </table>
 
       <div class="advance-balance">
         <div class="advance-section">
-          <span><strong>Advance:</strong> ${data.advanceAmount.toFixed(2)}</span>
+          <span><strong>Advance:</strong> ${escapeHtml((data.advanceAmount || 0).toFixed(2))}</span>
         </div>
         <div class="balance-section">
-          <span><strong>Balance:</strong> ${data.balanceAmount.toFixed(2)}</span>
+          <span><strong>Balance:</strong> ${escapeHtml((data.balanceAmount || 0).toFixed(2))}</span>
         </div>
       </div>
 
@@ -378,12 +391,12 @@ function generateInvoiceHTML(data: InvoiceData): string {
         </div>
         <div class="info-row">
           <span class="info-label">Remarks:</span>
-          <span>${data.remarks || '-'}</span>
+          <span>${escapeHtml(data.remarks || '-')}</span>
         </div>
       </div>
 
       <div class="invoice-value">
-        <strong>Invoice Value :</strong> ${data.invoiceValueInWords}
+        <strong>Invoice Value :</strong> ${escapeHtml(data.invoiceValueInWords)}
       </div>
 
       <div class="terms">
@@ -410,7 +423,12 @@ function generateInvoiceHTML(data: InvoiceData): string {
       </div>
     </body>
     </html>
-  `
+  `;
+  
+  console.log('Generated HTML length:', html.length);
+  console.log('HTML preview (first 500 chars):', html.substring(0, 500));
+  
+  return html;
 }
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
