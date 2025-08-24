@@ -44,6 +44,24 @@ function generateInvoiceHTML(data: InvoiceData): string {
     data.items = [{ srl: 1, particular: 'No items', quantity: 0, rent: 0, amount: 0 }];
   }
   
+  // Validate required fields
+  if (!data.customerName) {
+    console.warn('Customer name is missing');
+    data.customerName = 'Unknown Customer';
+  }
+  
+  if (!data.quotationNo) {
+    console.warn('Quotation number is missing');
+    data.quotationNo = 'N/A';
+  }
+  
+  console.log('Validated data:', {
+    customerName: data.customerName,
+    quotationNo: data.quotationNo,
+    itemsCount: data.items.length,
+    totalAmount: data.totalAmount
+  });
+  
   const itemsHTML = data.items.map(item => `
     <tr>
       <td style="text-align: center; border: 1px solid #000; padding: 4px; font-size: 9px;">${item.srl || ''}</td>
@@ -55,6 +73,9 @@ function generateInvoiceHTML(data: InvoiceData): string {
   `).join('')
 
   const totalQty = data.items.reduce((sum, item) => sum + item.quantity, 0)
+  
+  console.log('Generated items HTML length:', itemsHTML.length);
+  console.log('Total quantity:', totalQty);
 
   return `
     <!DOCTYPE html>

@@ -45,43 +45,48 @@ export async function GET(
 
     // Format dates for PDF
     const formatDate = (date: Date) => {
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
+      try {
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      } catch (error) {
+        console.error('Date formatting error:', error);
+        return date.toISOString().split('T')[0]; // Fallback to YYYY-MM-DD
+      }
     }
 
     // Prepare data for PDF generation
     const pdfData = {
       quotationNo: invoice.quotationNo,
-      customerName: invoice.customerName,
-      customerAddress: invoice.customerAddress,
-      customerTel: invoice.customerTel,
-      customerState: invoice.customerState,
-      customerStateCode: invoice.customerStateCode,
+      customerName: invoice.customerName || 'Unknown Customer',
+      customerAddress: invoice.customerAddress || 'No Address',
+      customerTel: invoice.customerTel || 'No Phone',
+      customerState: invoice.customerState || 'Unknown State',
+      customerStateCode: invoice.customerStateCode || 'Unknown',
       customerGSTIN: invoice.customerGSTIN || '',
       refName: invoice.refName || '',
       bookingDate: formatDate(invoice.bookingDate),
       eventDate: formatDate(invoice.eventDate),
-      startTime: invoice.startTime,
-      endTime: invoice.endTime,
+      startTime: invoice.startTime || '00:00',
+      endTime: invoice.endTime || '00:00',
       manager: invoice.manager || '',
-      advanceAmount: invoice.advanceAmount,
-      balanceAmount: invoice.balanceAmount,
+      advanceAmount: invoice.advanceAmount || 0,
+      balanceAmount: invoice.balanceAmount || 0,
       remarks: invoice.remarks || '',
-      totalAmount: invoice.totalAmount,
-      cgstAmount: invoice.cgstAmount,
-      sgstAmount: invoice.sgstAmount,
-      taxableAmount: invoice.taxableAmount,
-      sacCode: invoice.sacCode,
-      invoiceValueInWords: invoice.invoiceValueInWords,
-      items: invoice.items.map(item => ({
-        srl: item.srl,
-        particular: item.particular,
-        quantity: item.quantity,
-        rent: item.rent,
-        amount: item.amount
+      totalAmount: invoice.totalAmount || 0,
+      cgstAmount: invoice.cgstAmount || 0,
+      sgstAmount: invoice.sgstAmount || 0,
+      taxableAmount: invoice.taxableAmount || 0,
+      sacCode: invoice.sacCode || '00440035',
+      invoiceValueInWords: invoice.invoiceValueInWords || 'Zero Rupees Only',
+      items: (invoice.items || []).map(item => ({
+        srl: item.srl || 1,
+        particular: item.particular || 'Unknown Item',
+        quantity: item.quantity || 0,
+        rent: item.rent || 0,
+        amount: item.amount || 0
       }))
     }
 
@@ -101,7 +106,10 @@ export async function GET(
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="invoice-${invoice.quotationNo}.pdf"`,
-        'Content-Length': pdfBuffer.length.toString()
+        'Content-Length': pdfBuffer.length.toString(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     })
   } catch (error) {
