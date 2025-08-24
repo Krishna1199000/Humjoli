@@ -35,7 +35,7 @@ interface InvoiceData {
   items: InvoiceItem[]
 }
 
-function generateInvoiceHTML(data: InvoiceData): string {
+export function generateInvoiceHTML(data: InvoiceData): string {
   console.log('=== HTML GENERATION DEBUG START ===')
   console.log('Generating HTML with data:', JSON.stringify(data, null, 2));
   
@@ -438,6 +438,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
 }
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
+  console.log('=== PDF GENERATION START ===')
   console.log('Starting invoice PDF generation...');
   
   // Define approaches to try in order
@@ -498,7 +499,7 @@ async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer
     console.log('Using @sparticuz/chromium for production...');
     
     // Configure Chromium for production (Vercel)
-    await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+    await chromium.font('https://raw.githubusercontent.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
     
     // Launch browser with proper production configuration
     browser = await puppeteerCore.launch({
@@ -509,7 +510,12 @@ async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer
         '--disable-features=VizDisplayCompositor',
         '--disable-dev-shm-usage',
         '--no-sandbox',
-        '--disable-setuid-sandbox'
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
       ],
       defaultViewport: { width: 1200, height: 800 },
       executablePath: await chromium.executablePath(),
@@ -521,14 +527,28 @@ async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer
     
     const html = generateInvoiceHTML(data);
     
+    console.log('Setting HTML content...');
     await page.setContent(html, { 
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle0',
       timeout: 30000 
     });
     
-    // Wait a bit for fonts to load
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for fonts and images to load
+    console.log('Waiting for assets to load...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
+    // Ensure the page is fully rendered
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        if (document.readyState === 'complete') {
+          resolve(true);
+        } else {
+          window.addEventListener('load', () => resolve(true));
+        }
+      });
+    });
+    
+    console.log('Generating PDF...');
     const pdf = await page.pdf({
       format: 'A4',
       margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
@@ -571,19 +591,39 @@ async function generateInvoicePDFWithPuppeteer(data: InvoiceData): Promise<Buffe
         '--no-first-run',
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding'
+        '--disable-renderer-backgrounding',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
       ]
     });
 
     page = await browser.newPage();
+    page.setDefaultTimeout(30000);
     
     const html = generateInvoiceHTML(data);
     
+    console.log('Setting HTML content...');
     await page.setContent(html, { 
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle0',
       timeout: 30000 
     });
     
+    // Wait for fonts and images to load
+    console.log('Waiting for assets to load...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Ensure the page is fully rendered
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        if (document.readyState === 'complete') {
+          resolve(true);
+        } else {
+          window.addEventListener('load', () => resolve(true));
+        }
+      });
+    });
+    
+    console.log('Generating PDF...');
     const pdf = await page.pdf({
       format: 'A4',
       margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
@@ -617,20 +657,27 @@ async function generateInvoicePDFSimple(data: InvoiceData): Promise<Buffer> {
     // Minimal configuration for maximum compatibility
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
     });
 
     page = await browser.newPage();
+    page.setDefaultTimeout(30000);
     
     const html = generateInvoiceHTML(data);
     
+    console.log('Setting HTML content...');
     // Simple content setting without complex wait conditions
-    await page.setContent(html);
+    await page.setContent(html, { waitUntil: 'domcontentloaded' });
     
+    // Wait a bit for rendering
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    console.log('Generating PDF...');
     // Basic PDF generation
     const pdf = await page.pdf({
       format: 'A4',
-      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      printBackground: true
     });
     
     console.log('Simple PDF generated successfully, size:', pdf.length, 'bytes');

@@ -375,22 +375,22 @@ export default function BillingPage() {
                       <Button 
                         onClick={() => {
                           if (previewInvoice) {
-                            window.open(`/api/test-pdf?id=${previewInvoice.id}`, '_blank');
-                          }
-                        }} 
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
-                      >
-                        Test HTML
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          if (previewInvoice) {
                             window.open(`/api/debug-invoice/${previewInvoice.id}`, '_blank');
                           }
                         }} 
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
                       >
                         Raw Data
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          if (previewInvoice) {
+                            window.open(`/api/test-html/${previewInvoice.id}`, '_blank');
+                          }
+                        }} 
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
+                      >
+                        Test HTML
                       </Button>
                       <Button onClick={()=>setPreviewOpen(false)} className="btn-ghost p-2"><X className="h-4 w-4"/></Button>
                 </div>
