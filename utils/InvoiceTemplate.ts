@@ -395,23 +395,124 @@ function generateInvoiceHTML(data: InvoiceData): string {
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   console.log('Starting invoice PDF generation...');
   
-  try {
-    // Use only the working approach (simple approach)
-    const result = await generateInvoicePDFSimple(data);
-    console.log('PDF generated successfully, size:', result.length, 'bytes');
-    return result;
-  } catch (error) {
-    console.error('PDF generation failed:', error);
-    throw new Error(`PDF generation failed: ${error instanceof Error ? error.message : String(error)}`);
+  // Define approaches to try in order
+  const approaches = [
+    {
+      name: 'Production Chromium',
+      fn: () => generateInvoicePDFWithChromium(data),
+      condition: () => process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
+    },
+    {
+      name: 'Development Puppeteer',
+      fn: () => generateInvoicePDFWithPuppeteer(data),
+      condition: () => true // Always available as fallback
+    },
+    {
+      name: 'Simple Puppeteer',
+      fn: () => generateInvoicePDFSimple(data),
+      condition: () => true // Always available as final fallback
+    }
+  ];
+
+  // Try each approach that meets the condition
+  for (let i = 0; i < approaches.length; i++) {
+    const approach = approaches[i];
+    
+    if (!approach.condition()) {
+      console.log(`Skipping ${approach.name} - condition not met`);
+      continue;
+    }
+    
+    try {
+      console.log(`Trying ${approach.name}...`);
+      const result = await approach.fn();
+      console.log(`${approach.name} succeeded! PDF size:`, result.length, 'bytes');
+      return result;
+    } catch (error) {
+      console.error(`${approach.name} failed:`, error);
+      
+      // If this is the last approach, throw the error
+      if (i === approaches.length - 1) {
+        throw new Error(`All PDF generation approaches failed. Last error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      
+      // Otherwise, continue to the next approach
+      console.log(`Continuing to next approach...`);
+    }
   }
+  
+  // This should never be reached, but TypeScript requires it
+  throw new Error('No PDF generation approaches available');
 }
 
-async function generateInvoicePDFSimple(data: InvoiceData): Promise<Buffer> {
+async function generateInvoicePDFWithChromium(data: InvoiceData): Promise<Buffer> {
   let browser;
   let page;
   
   try {
-    console.log('Using simple approach...');
+    console.log('Using @sparticuz/chromium for production...');
+    
+    // Configure Chromium for production (Vercel)
+    await chromium.font('https://raw.githack.com/googlei18n/noto-emoji/master/fonts/NotoColorEmoji.ttf');
+    
+    // Launch browser with proper production configuration
+    browser = await puppeteerCore.launch({
+      args: [
+        ...chromium.args,
+        '--hide-scrollbars',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-dev-shm-usage',
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ],
+      defaultViewport: { width: 1200, height: 800 },
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+
+    page = await browser.newPage();
+    page.setDefaultTimeout(30000);
+    
+    const html = generateInvoiceHTML(data);
+    
+    await page.setContent(html, { 
+      waitUntil: 'domcontentloaded',
+      timeout: 30000 
+    });
+    
+    // Wait a bit for fonts to load
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      printBackground: true,
+      preferCSSPageSize: false,
+      displayHeaderFooter: false
+    });
+    
+    console.log('Production PDF generated successfully, size:', pdf.length, 'bytes');
+    return Buffer.from(pdf);
+  } catch (error) {
+    console.error('Production Chromium approach failed:', error);
+    throw error;
+  } finally {
+    if (page) {
+      try { await page.close(); } catch (e) {}
+    }
+    if (browser) {
+      try { await browser.close(); } catch (e) {}
+    }
+  }
+}
+
+async function generateInvoicePDFWithPuppeteer(data: InvoiceData): Promise<Buffer> {
+  let browser;
+  let page;
+  
+  try {
+    console.log('Using regular Puppeteer for development...');
     
     const puppeteer = (await import('puppeteer')).default;
     
@@ -444,10 +545,53 @@ async function generateInvoicePDFSimple(data: InvoiceData): Promise<Buffer> {
       printBackground: true
     });
     
-    console.log('Approach 3 succeeded!');
+    console.log('Development PDF generated successfully, size:', pdf.length, 'bytes');
     return Buffer.from(pdf);
   } catch (error) {
-    console.error('Simple approach failed:', error);
+    console.error('Development Puppeteer approach failed:', error);
+    throw error;
+  } finally {
+    if (page) {
+      try { await page.close(); } catch (e) {}
+    }
+    if (browser) {
+      try { await browser.close(); } catch (e) {}
+    }
+  }
+}
+
+async function generateInvoicePDFSimple(data: InvoiceData): Promise<Buffer> {
+  let browser;
+  let page;
+  
+  try {
+    console.log('Using simple Puppeteer as final fallback...');
+    
+    const puppeteer = (await import('puppeteer')).default;
+    
+    // Minimal configuration for maximum compatibility
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    page = await browser.newPage();
+    
+    const html = generateInvoiceHTML(data);
+    
+    // Simple content setting without complex wait conditions
+    await page.setContent(html);
+    
+    // Basic PDF generation
+    const pdf = await page.pdf({
+      format: 'A4',
+      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+    });
+    
+    console.log('Simple PDF generated successfully, size:', pdf.length, 'bytes');
+    return Buffer.from(pdf);
+  } catch (error) {
+    console.error('Simple Puppeteer approach failed:', error);
     throw error;
   } finally {
     if (page) {
