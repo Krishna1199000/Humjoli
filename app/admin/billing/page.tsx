@@ -72,7 +72,7 @@ export default function BillingPage() {
   const [previewLoading, setPreviewLoading] = useState(false)
   const [statusEdit, setStatusEdit] = useState<'PENDING' | 'PAID'>('PENDING')
   const [savingStatus, setSavingStatus] = useState(false)
-  const [debugMode, setDebugMode] = useState(false) // Add debug mode
+
 
   // (No tabs; single page design)
 
@@ -369,29 +369,6 @@ export default function BillingPage() {
                       <Button onClick={()=>previewInvoice && downloadInvoice(previewInvoice.id)} className="btn-primary flex items-center"><Download className="h-4 w-4 mr-2"/>Download</Button>
                       <Button onClick={()=>previewInvoice && editInvoice(previewInvoice)} className="btn-secondary flex items-center"><Pencil className="h-4 w-4 mr-2"/>Edit</Button>
                       <Button onClick={()=>previewInvoice && deleteInvoice(previewInvoice.id)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center"><Trash2 className="h-4 w-4 mr-2"/>Delete</Button>
-                      <Button onClick={()=>setDebugMode(!debugMode)} className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center text-xs">
-                        {debugMode ? 'PDF' : 'Debug'}
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          if (previewInvoice) {
-                            window.open(`/api/debug-invoice/${previewInvoice.id}`, '_blank');
-                          }
-                        }} 
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
-                      >
-                        Raw Data
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          if (previewInvoice) {
-                            window.open(`/api/test-html/${previewInvoice.id}`, '_blank');
-                          }
-                        }} 
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center text-xs"
-                      >
-                        Test HTML
-                      </Button>
                       <Button onClick={()=>setPreviewOpen(false)} className="btn-ghost p-2"><X className="h-4 w-4"/></Button>
                 </div>
                   </div>
@@ -399,65 +376,6 @@ export default function BillingPage() {
                 <div className="flex-1 bg-gray-50 rounded-lg overflow-hidden">
                   {previewLoading ? (
                     <div className="flex h-full items-center justify-center text-gray-500">Loading...</div>
-                  ) : debugMode && previewInvoice ? (
-                    <div className="w-full h-full overflow-auto p-4 bg-white">
-                      <div className="max-w-4xl mx-auto">
-                        <h2 className="text-2xl font-bold mb-4">Debug View - Invoice #{previewInvoice.quotationNo}</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                          <div className="border p-4 rounded">
-                            <h3 className="font-bold mb-2">Customer Details</h3>
-                            <p><strong>Name:</strong> {previewInvoice.customerName}</p>
-                            <p><strong>Address:</strong> {previewInvoice.customerAddress}</p>
-                            <p><strong>Phone:</strong> {previewInvoice.customerTel}</p>
-                            <p><strong>State:</strong> {previewInvoice.customerState}</p>
-                            <p><strong>GSTIN:</strong> {previewInvoice.customerGSTIN || 'N/A'}</p>
-                          </div>
-                          <div className="border p-4 rounded">
-                            <h3 className="font-bold mb-2">Event Details</h3>
-                            <p><strong>Booking Date:</strong> {new Date(previewInvoice.bookingDate).toLocaleDateString()}</p>
-                            <p><strong>Event Date:</strong> {new Date(previewInvoice.eventDate).toLocaleDateString()}</p>
-                            <p><strong>Time:</strong> {previewInvoice.startTime} - {previewInvoice.endTime}</p>
-                            <p><strong>Manager:</strong> {previewInvoice.manager || 'N/A'}</p>
-                          </div>
-                        </div>
-                        <div className="border p-4 rounded mb-6">
-                          <h3 className="font-bold mb-2">Items ({previewInvoice.items?.length || 0})</h3>
-                          {previewInvoice.items && previewInvoice.items.length > 0 ? (
-                            <table className="w-full border-collapse border">
-                              <thead>
-                                <tr className="bg-gray-100">
-                                  <th className="border p-2">Srl</th>
-                                  <th className="border p-2">Particular</th>
-                                  <th className="border p-2">Qty</th>
-                                  <th className="border p-2">Rent</th>
-                                  <th className="border p-2">Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {previewInvoice.items.map((item, index) => (
-                                  <tr key={index}>
-                                    <td className="border p-2">{item.srl}</td>
-                                    <td className="border p-2">{item.particular}</td>
-                                    <td className="border p-2">{item.quantity}</td>
-                                    <td className="border p-2">₹{item.rent}</td>
-                                    <td className="border p-2">₹{item.amount}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          ) : (
-                            <p className="text-red-500">No items found!</p>
-                          )}
-                        </div>
-                        <div className="border p-4 rounded">
-                          <h3 className="font-bold mb-2">Financial Details</h3>
-                          <p><strong>Total Amount:</strong> ₹{previewInvoice.totalAmount}</p>
-                          <p><strong>Advance:</strong> ₹{previewInvoice.advanceAmount}</p>
-                          <p><strong>Balance:</strong> ₹{previewInvoice.balanceAmount}</p>
-                          <p><strong>Amount in Words:</strong> {previewInvoice.invoiceValueInWords}</p>
-                        </div>
-                      </div>
-                    </div>
                   ) : previewPdfUrl ? (
                     <div className="w-full h-full flex flex-col">
                       <iframe 

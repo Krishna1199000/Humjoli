@@ -757,167 +757,527 @@ async function generateSimpleTextPDF(data: InvoiceData): Promise<Buffer> {
     browser = await puppeteer.launch(launchOptions);
     page = await browser.newPage();
     
-    // Generate compact single-page HTML
+    // Generate modern corporate invoice HTML
     const simpleHTML = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
         <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+          
+          * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+          }
+          
           body { 
-            font-family: Arial, sans-serif; 
-            font-size: 10px; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 9px; 
             line-height: 1.2; 
-            color: #000; 
+            color: #1f2937; 
+            background: #ffffff;
             padding: 10px;
             max-height: 297mm;
             overflow: hidden;
           }
-          .header { 
-            text-align: center; 
-            margin-bottom: 10px; 
-            border-bottom: 1px solid #000; 
-            padding-bottom: 5px; 
+          
+          .container {
+            max-width: 100%;
+            margin: 0 auto;
           }
-          .header h1 { font-size: 14px; margin-bottom: 3px; }
-          .header h2 { font-size: 12px; margin-bottom: 3px; }
-          .header p { font-size: 9px; }
           
-          .main-container { display: flex; gap: 10px; margin-bottom: 10px; }
-          .left-column, .right-column { flex: 1; }
+          /* Header Section */
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e5e7eb;
+          }
           
-          .section { 
-            margin: 5px 0; 
-            padding: 5px; 
-            border: 1px solid #000; 
+          .company-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          
+          .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+          }
+          
+          .company-details h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 2px;
+          }
+          
+          .company-details p {
+            font-size: 9px;
+            color: #6b7280;
+            margin-bottom: 1px;
+          }
+          
+          .invoice-meta {
+            text-align: right;
+          }
+          
+          .invoice-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3b82f6;
+            margin-bottom: 4px;
+          }
+          
+          .invoice-date {
+            font-size: 9px;
+            color: #6b7280;
+          }
+          
+          /* Main Content Grid */
+          .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+          }
+          
+          /* Cards */
+          .card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+          }
+          
+          .card h3 {
+            font-size: 11px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          
+          .card h3::before {
+            content: '';
+            width: 2px;
+            height: 12px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 1px;
+          }
+          
+          /* Customer Details */
+          .customer-details .detail-row {
+            display: flex;
+            margin-bottom: 4px;
+            align-items: center;
+          }
+          
+          .detail-label {
+            font-weight: 500;
+            color: #374151;
+            min-width: 60px;
             font-size: 9px;
           }
-          .section h3 { font-size: 10px; margin-bottom: 3px; }
-          .row { margin: 2px 0; }
-          .label { font-weight: bold; display: inline-block; width: 80px; }
           
-          .items { margin: 5px 0; }
-          .item { 
-            border-bottom: 1px solid #ccc; 
-            padding: 2px 0; 
+          .detail-value {
+            color: #1f2937;
+            font-size: 9px;
+          }
+          
+          /* Event Details Table */
+          .event-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+          }
+          
+          .event-table tr {
+            border-bottom: 1px solid #f3f4f6;
+          }
+          
+          .event-table tr:last-child {
+            border-bottom: none;
+          }
+          
+          .event-table td {
+            padding: 4px 0;
+            font-size: 9px;
+          }
+          
+          .event-table td:first-child {
+            font-weight: 500;
+            color: #374151;
+            width: 40%;
+          }
+          
+          .event-table td:last-child {
+            color: #1f2937;
+          }
+          
+          /* Items Table */
+          .items-section {
+            grid-column: 1 / -1;
+          }
+          
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+          }
+          
+          .items-table th {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            padding: 6px 4px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 9px;
+            color: #374151;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          
+          .items-table td {
+            padding: 4px 4px;
+            font-size: 9px;
+            border-bottom: 1px solid #f3f4f6;
+          }
+          
+          .items-table tr:nth-child(even) {
+            background: #fafafa;
+          }
+          
+          .items-table tr:last-child td {
+            border-bottom: none;
+          }
+          
+          .item-name {
+            font-weight: 500;
+            color: #1f2937;
+          }
+          
+          .item-qty, .item-rate, .item-amount {
+            text-align: center;
+            color: #374151;
+          }
+          
+          /* Summary Section */
+          .summary-section {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+            align-items: start;
+          }
+          
+          .payment-details {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px;
+          }
+          
+          .payment-details h3 {
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 11px;
+          }
+          
+          .payment-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            padding: 2px 0;
+          }
+          
+          .payment-row.total {
+            border-top: 2px solid #e5e7eb;
+            margin-top: 6px;
+            padding-top: 6px;
+            font-weight: 600;
+            font-size: 10px;
+            color: #1f2937;
+          }
+          
+          .amount-in-words {
+            margin-top: 8px;
+            padding: 6px;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-style: italic;
+            color: #374151;
             font-size: 8px;
           }
-          .total { 
-            font-weight: bold; 
-            border-top: 1px solid #000; 
-            padding-top: 3px; 
-            margin-top: 5px; 
+          
+          /* Terms Section */
+          .terms-section {
+            grid-column: 1 / -1;
+            margin-top: 6px;
           }
           
-          .bottom-section { margin-top: 10px; }
-          .terms { 
-            margin: 5px 0; 
-            font-size: 7px; 
-            line-height: 1.1;
-          }
-          .terms p { margin: 1px 0; }
-          
-          .signatures { 
-            display: flex; 
-            justify-content: space-between; 
-            margin-top: 10px;
-          }
-          .signature-box { 
-            text-align: center; 
-            border: 1px solid #000; 
-            padding: 8px; 
-            width: 45%; 
+          .terms-content {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 4px;
             font-size: 8px;
+            line-height: 1.2;
+            color: #6b7280;
           }
-          .signature-line { 
-            border-top: 1px solid #000; 
-            margin-top: 15px; 
+          
+          .terms-content ol {
+            margin-left: 10px;
+          }
+          
+          .terms-content li {
+            margin-bottom: 2px;
+          }
+          
+          /* Footer */
+          .footer {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid #e5e7eb;
+          }
+          
+          .signature-box {
+            text-align: center;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            background: #ffffff;
+          }
+          
+          .signature-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            font-size: 10px;
+          }
+          
+          .signature-line {
+            border-top: 2px dotted #d1d5db;
+            margin-top: 25px;
+            padding-top: 10px;
+          }
+          
+          .thank-you {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 6px;
+            padding: 4px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: 4px;
+            color: #0369a1;
+            font-weight: 500;
+            font-size: 9px;
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>HUMJOLI EVENTS</h1>
-          <p>State: Maharashtra | State Code: 27 | GSTIN: 27ADOPA7853Q1ZR</p>
-          <h2>INVOICE - ${data.quotationNo}</h2>
-        </div>
-        
-        <div class="main-container">
-          <div class="left-column">
-            <div class="section">
-              <h3>CUSTOMER DETAILS</h3>
-              <div class="row"><span class="label">Name:</span> ${data.customerName}</div>
-              <div class="row"><span class="label">Address:</span> ${data.customerAddress}</div>
-              <div class="row"><span class="label">Phone:</span> ${data.customerTel}</div>
-              <div class="row"><span class="label">State:</span> ${data.customerState}</div>
-              <div class="row"><span class="label">State Code:</span> ${data.customerStateCode}</div>
-              <div class="row"><span class="label">GSTIN:</span> ${data.customerGSTIN || 'N/A'}</div>
-              <div class="row"><span class="label">Reference:</span> ${data.refName || 'N/A'}</div>
+        <div class="container">
+          <!-- Header -->
+          <div class="header">
+            <div class="company-info">
+              <div class="logo">H</div>
+              <div class="company-details">
+                <h1>HUMJOLI EVENTS</h1>
+                <p>State: Maharashtra | State Code: 27</p>
+                <p>GSTIN: 27ADOPA7853Q1ZR</p>
+                <p>Professional Event Management Services</p>
+              </div>
             </div>
-            
-            <div class="section">
-              <h3>EVENT DETAILS</h3>
-              <div class="row"><span class="label">Quotation No:</span> ${data.quotationNo}</div>
-              <div class="row"><span class="label">Booking Date:</span> ${data.bookingDate}</div>
-              <div class="row"><span class="label">Event Date:</span> ${data.eventDate}</div>
-              <div class="row"><span class="label">Time:</span> ${data.startTime} to ${data.endTime}</div>
-              <div class="row"><span class="label">Manager:</span> ${data.manager || 'N/A'}</div>
+            <div class="invoice-meta">
+              <div class="invoice-number">INVOICE #${data.quotationNo}</div>
+              <div class="invoice-date">Date: ${data.bookingDate}</div>
             </div>
           </div>
           
-          <div class="right-column">
-            <div class="section">
-              <h3>ITEMS & SERVICES</h3>
-              <div class="items">
-                ${data.items.map((item, index) => `
-                  <div class="item">
-                    <strong>${index + 1}. ${item.particular}</strong><br>
-                    Qty: ${item.quantity} | Rate: ₹${item.rent} | Amount: ₹${item.amount}
-                  </div>
-                `).join('')}
-              </div>
-              <div class="total">
-                <div class="row"><span class="label">Total Qty:</span> ${data.items.reduce((sum, item) => sum + item.quantity, 0)}</div>
-                <div class="row"><span class="label">Total Amount:</span> ₹${data.totalAmount}</div>
+          <!-- Main Content -->
+          <div class="content-grid">
+            <!-- Customer Details -->
+            <div class="card">
+              <h3>Customer Details</h3>
+              <div class="customer-details">
+                <div class="detail-row">
+                  <span class="detail-label">Name:</span>
+                  <span class="detail-value">${data.customerName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Address:</span>
+                  <span class="detail-value">${data.customerAddress}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Phone:</span>
+                  <span class="detail-value">${data.customerTel}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">State:</span>
+                  <span class="detail-value">${data.customerState} (${data.customerStateCode})</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">GSTIN:</span>
+                  <span class="detail-value">${data.customerGSTIN || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Reference:</span>
+                  <span class="detail-value">${data.refName || 'N/A'}</span>
+                </div>
               </div>
             </div>
             
-            <div class="section">
-              <h3>TAXATION & PAYMENT</h3>
-              <div class="row"><span class="label">SAC Code:</span> ${data.sacCode}</div>
-              <div class="row"><span class="label">Taxable Amt:</span> ₹${data.taxableAmount}</div>
-              <div class="row"><span class="label">CGST:</span> ₹${data.cgstAmount}</div>
-              <div class="row"><span class="label">SGST:</span> ₹${data.sgstAmount}</div>
-              <div class="row"><strong>TOTAL: ₹${data.totalAmount}</strong></div>
-              <div class="row"><span class="label">Advance:</span> ₹${data.advanceAmount}</div>
-              <div class="row"><span class="label">Balance:</span> ₹${data.balanceAmount}</div>
-              <div class="row"><span class="label">In Words:</span> ${data.invoiceValueInWords}</div>
+            <!-- Event Details -->
+            <div class="card">
+              <h3>Event Details</h3>
+              <table class="event-table">
+                <tr>
+                  <td>Quotation No:</td>
+                  <td>${data.quotationNo}</td>
+                </tr>
+                <tr>
+                  <td>Booking Date:</td>
+                  <td>${data.bookingDate}</td>
+                </tr>
+                <tr>
+                  <td>Event Date:</td>
+                  <td>${data.eventDate}</td>
+                </tr>
+                <tr>
+                  <td>Time:</td>
+                  <td>${data.startTime} - ${data.endTime}</td>
+                </tr>
+                <tr>
+                  <td>Manager:</td>
+                  <td>${data.manager || 'N/A'}</td>
+                </tr>
+              </table>
             </div>
-          </div>
-        </div>
-        
-        <div class="bottom-section">
-          <div class="section">
-            <h3>TERMS & CONDITIONS</h3>
-            <div class="terms">
-              <p>1. Once Order taken will not be cancelled</p>
-              <p>2. All Item will chargeable for Two Hours (except SAFA/Pagdi)</p>
-              <p>3. In case of delay extra hours will be chargeable.</p>
-              <p>4. Missing of Safa will be chargeable (responsibility of customer)</p>
-              <p>5. BOOKING ADVANCE 50% & BALANCE AMOUNT SHOULD BE PAID ON VENUE</p>
+            
+            <!-- Items Table -->
+            <div class="items-section">
+              <div class="card">
+                <h3>Items & Services</h3>
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Item/Service</th>
+                      <th>Qty</th>
+                      <th>Rate (₹)</th>
+                      <th>Amount (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${data.items.map((item, index) => `
+                      <tr>
+                        <td class="item-name">${index + 1}. ${item.particular}</td>
+                        <td class="item-qty">${item.quantity}</td>
+                        <td class="item-rate">${item.rent.toFixed(2)}</td>
+                        <td class="item-amount">${item.amount.toFixed(2)}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-          
-          <div class="signatures">
-            <div class="signature-box">
-              <p>Customer's Signature</p>
-              <div class="signature-line"></div>
+            
+            <!-- Summary Section -->
+            <div class="summary-section">
+              <div class="card">
+                <h3>Payment Summary</h3>
+                <div class="payment-row">
+                  <span>Advance Amount:</span>
+                  <span>₹${data.advanceAmount.toFixed(2)}</span>
+                </div>
+                <div class="payment-row">
+                  <span>Balance Amount:</span>
+                  <span>₹${data.balanceAmount.toFixed(2)}</span>
+                </div>
+                <div class="payment-row">
+                  <span>Remarks:</span>
+                  <span>${data.remarks || 'N/A'}</span>
+                </div>
+              </div>
+              
+              <div class="payment-details">
+                <h3>Tax Summary</h3>
+                <div class="payment-row">
+                  <span>Taxable Amount:</span>
+                  <span>₹${data.taxableAmount.toFixed(2)}</span>
+                </div>
+                <div class="payment-row">
+                  <span>CGST (0%):</span>
+                  <span>₹${data.cgstAmount.toFixed(2)}</span>
+                </div>
+                <div class="payment-row">
+                  <span>SGST (0%):</span>
+                  <span>₹${data.sgstAmount.toFixed(2)}</span>
+                </div>
+                <div class="payment-row total">
+                  <span>Total Amount:</span>
+                  <span>₹${data.totalAmount.toFixed(2)}</span>
+                </div>
+                <div class="amount-in-words">
+                  <strong>Amount in Words:</strong> ${data.invoiceValueInWords}
+                </div>
+              </div>
             </div>
-            <div class="signature-box">
-              <p>For HUMJOLI EVENTS</p>
-              <p>Authorised Signatory</p>
-              <div class="signature-line"></div>
+            
+            <!-- Terms Section -->
+            <div class="terms-section">
+              <div class="card">
+                <h3>Terms & Conditions</h3>
+                <div class="terms-content">
+                  <ol>
+                    <li>Once Order taken will not be cancelled</li>
+                    <li>All Item will chargeable for Two Hours (except SAFA/Pagdi)</li>
+                    <li>In case of delay extra hours will be chargeable</li>
+                    <li>Missing of Safa will be chargeable (responsibility of customer)</li>
+                    <li>BOOKING ADVANCE 50% & BALANCE AMOUNT SHOULD BE PAID ON VENUE</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="footer">
+              <div class="signature-box">
+                <div class="signature-title">Customer's Signature</div>
+                <div class="signature-line"></div>
+              </div>
+              <div class="signature-box">
+                <div class="signature-title">For HUMJOLI EVENTS</div>
+                <div class="signature-title" style="font-size: 10px; margin-top: 5px;">Authorised Signatory</div>
+                <div class="signature-line"></div>
+              </div>
+            </div>
+            
+            <div class="thank-you">
+              Thank you for choosing HUMJOLI EVENTS for your special day! 🎉
             </div>
           </div>
         </div>
