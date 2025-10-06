@@ -509,7 +509,7 @@ export default function SalaryManagementPage() {
                   value={formData.basicSalary}
                   onChange={(e) => setFormData(prev => ({ ...prev, basicSalary: e.target.value }))}
                   className="border-purple-200 focus:border-purple-400 focus:ring-purple-400"
-                  placeholder="0.00"
+                  placeholder=""
                   step="0.01"
                   required
                 />
@@ -522,7 +522,7 @@ export default function SalaryManagementPage() {
                   value={formData.allowances}
                   onChange={(e) => setFormData(prev => ({ ...prev, allowances: e.target.value }))}
                   className="border-purple-200 focus:border-purple-400 focus:ring-purple-400"
-                  placeholder="0.00"
+                  placeholder=""
                   step="0.01"
                 />
               </div>
@@ -534,7 +534,7 @@ export default function SalaryManagementPage() {
                   value={formData.deductions}
                   onChange={(e) => setFormData(prev => ({ ...prev, deductions: e.target.value }))}
                   className="border-purple-200 focus:border-purple-400 focus:ring-purple-400"
-                  placeholder="0.00"
+                  placeholder=""
                   step="0.01"
                 />
               </div>

@@ -159,6 +159,7 @@ export default function ManageUsersPage() {
                   >
                     <option value="ALL">All Roles</option>
                     <option value="ADMIN">Admin</option>
+                    <option value="EMPLOYEE">Employee</option>
                     <option value="CUSTOMER">Customer</option>
                   </select>
                 </div>
@@ -233,27 +234,27 @@ export default function ManageUsersPage() {
                             </div>
                           </td>
                                                   <td className="py-4 px-4">
-                          <Button
-                            onClick={() => updateUserRole(user.id, user.role === "ADMIN" ? "CUSTOMER" : "ADMIN")}
-                            disabled={updatingRole === user.id}
-                            className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-300 cursor-pointer hover:scale-105 ${
-                              user.role === "ADMIN"
-                                ? "bg-red-100 text-red-600 hover:bg-red-200 border border-red-200"
-                                : "bg-purple-100 text-purple-600 hover:bg-purple-200 border border-purple-200"
-                            } ${updatingRole === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            {updatingRole === user.id ? (
-                              <div className="flex items-center space-x-1">
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                                <span>Updating...</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center space-x-1">
-                                <Shield className="h-3 w-3" />
-                                <span>{user.role}</span>
-                              </div>
+                          <div className="flex items-center space-x-2">
+                            <select
+                              value={user.role}
+                              onChange={(e) => updateUserRole(user.id, e.target.value)}
+                              disabled={updatingRole === user.id}
+                              className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 border ${
+                                user.role === "ADMIN"
+                                  ? "bg-red-100 text-red-600 border-red-200"
+                                  : user.role === "EMPLOYEE"
+                                  ? "bg-blue-100 text-blue-600 border-blue-200"
+                                  : "bg-green-100 text-green-600 border-green-200"
+                              } ${updatingRole === user.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                              <option value="CUSTOMER">Customer</option>
+                              <option value="EMPLOYEE">Employee</option>
+                              <option value="ADMIN">Admin</option>
+                            </select>
+                            {updatingRole === user.id && (
+                              <RefreshCw className="h-4 w-4 animate-spin text-purple-600" />
                             )}
-                          </Button>
+                          </div>
                         </td>
                           <td className="py-4 px-4">
                             <Badge

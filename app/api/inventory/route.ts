@@ -7,7 +7,17 @@ import { uploadImage } from "@/lib/cloudinary"
 // GET - Fetch all inventory items with optional filters
 export async function GET(request: NextRequest) {
   try {
-    // Allow public access to view inventory items
+    // Check authentication for inventory access
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Allow CUSTOMER, EMPLOYEE, and ADMIN to view inventory
+    if (!["CUSTOMER", "EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+    }
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
     const category = searchParams.get('category')
@@ -60,8 +70,13 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Allow EMPLOYEE and ADMIN to create inventory items
+    if (!["EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions. Only employees and admins can add inventory items." }, { status: 403 })
     }
 
     const formData = await request.formData()

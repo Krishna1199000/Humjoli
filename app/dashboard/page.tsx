@@ -92,7 +92,7 @@ export default function DashboardPage() {
       icon: Package,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
-      href: "/admin/inventory"
+      href: session?.user?.role === "EMPLOYEE" ? "/admin/inventory" : "/inventory"
     },
     {
       title: "Categories",
@@ -100,7 +100,7 @@ export default function DashboardPage() {
       icon: ShoppingCart,
       color: "text-green-600",
       bgColor: "bg-green-50",
-      href: "/admin/inventory"
+      href: session?.user?.role === "EMPLOYEE" ? "/admin/inventory" : "/inventory"
     },
     {
       title: "Recent Activity",
@@ -125,7 +125,13 @@ export default function DashboardPage() {
               >
                 Humjoli Dashboard
               </motion.div>
-              <Badge className="bg-purple-100 text-purple-600">Customer</Badge>
+              <Badge className={`${
+                session?.user?.role === "EMPLOYEE" 
+                  ? "bg-blue-100 text-blue-600" 
+                  : "bg-purple-100 text-purple-600"
+              }`}>
+                {session?.user?.role === "EMPLOYEE" ? "Employee" : "Customer"}
+              </Badge>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -208,10 +214,10 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Link href="/admin/inventory">
+                <Link href={session?.user?.role === "EMPLOYEE" ? "/admin/inventory" : "/inventory"}>
                   <Button className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
                     <Package className="mr-2 h-5 w-5" />
-                    Browse Inventory
+                    {session?.user?.role === "EMPLOYEE" ? "Manage Inventory" : "Browse Inventory"}
                   </Button>
                 </Link>
                 <Link href="/favorites">
@@ -220,12 +226,22 @@ export default function DashboardPage() {
                     My Favorites
                   </Button>
                 </Link>
-                <Link href="/">
-                  <Button className="w-full bg-white border-2 border-purple-300 text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-300">
-                    <Calendar className="mr-2 h-5 w-5" />
-                    Back to Home
-                  </Button>
-                </Link>
+                {session?.user?.role === "EMPLOYEE" && (
+                  <Link href="/master">
+                    <Button className="w-full bg-gradient-to-r from-green-500 to-green-700 hover:from-green-600 hover:to-green-800 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
+                      <Settings className="mr-2 h-5 w-5" />
+                      Master Data
+                    </Button>
+                  </Link>
+                )}
+                {session?.user?.role === "CUSTOMER" && (
+                  <Link href="/">
+                    <Button className="w-full bg-white border-2 border-purple-300 text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-lg font-semibold transition-all duration-300">
+                      <Calendar className="mr-2 h-5 w-5" />
+                      Back to Home
+                    </Button>
+                  </Link>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -250,10 +266,10 @@ export default function DashboardPage() {
                 Thank you for choosing us for your wedding planning needs. We're here to make your special day perfect.
               </p>
               <div className="flex justify-center space-x-4">
-                <Link href="/admin/inventory">
+                <Link href={session?.user?.role === "EMPLOYEE" ? "/admin/inventory" : "/inventory"}>
                   <Button className="bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
                     <Package className="mr-2 h-5 w-5" />
-                    Browse Inventory
+                    {session?.user?.role === "EMPLOYEE" ? "Manage Inventory" : "Browse Inventory"}
                   </Button>
                 </Link>
                 <Link href="/favorites">

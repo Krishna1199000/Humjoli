@@ -42,6 +42,7 @@ model Session {
 
 enum UserRole {
   ADMIN
+  EMPLOYEE
   CUSTOMER
 }
 
@@ -66,6 +67,25 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// One-time password (OTP) for email login/verification
+model Otp {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  purpose   OtpPurpose @default(LOGIN)
+  tempData  Json?
+
+  @@index([email, createdAt])
+}
+
+enum OtpPurpose {
+  LOGIN
+  SIGNUP
+  RESET
 }
 
 model Employee {
@@ -116,6 +136,15 @@ enum InventoryStatus {
   LOW_STOCK
   OUT_OF_STOCK
   DISCONTINUED
+}
+
+// Inventory Categories (managed list for UI; Inventory.category stores the name)
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Favorite {
@@ -207,12 +236,14 @@ model Invoice {
   taxableAmount Float    @default(0)
   sacCode       String   @default("00440035")
   invoiceValueInWords String
+  customerSignature String? // Base64 encoded signature image
   status        InvoiceStatus @default(PENDING)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
   // Relations
   items InvoiceItem[]
+  deliveries DeliveryEntry[]
 }
 
 model InvoiceItem {
@@ -229,9 +260,32 @@ model InvoiceItem {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
+// Delivery planning entries (per event/invoice)
+model DeliveryEntry {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  eventDate  DateTime
+  eventTime  String?
+  area       String?
+  vendor     String?
+  remark     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([eventDate])
+  @@index([invoiceId])
+}
+
 enum InvoiceStatus {
+  DRAFT
   PENDING
+  SENT
+  SEMI_PAID
   PAID
+  OVERDUE
+  CANCELLED
 }
 
 // Invoice Counter for auto-incrementing quotation numbers
@@ -239,4 +293,216 @@ model InvoiceCounter {
   id    String @id @default(cuid())
   currentNumber Int @default(1)
   updatedAt DateTime @updatedAt
+}
+
+// Vendor Management
+model Vendor {
+  id            String   @id @default(cuid())
+  businessName  String
+  contactName   String?
+  phone         String?
+  email         String?
+  gstin         String?
+  address       String?
+  notes         String?
+  tags          String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  purchases     Purchase[]
+  payments      VendorPayment[]
+  
+  @@index([businessName])
+}
+
+model Purchase {
+  id           String   @id @default(cuid())
+  vendorId     String
+  amount       Int      // Amount in paise (to avoid float issues)
+  date         DateTime
+  reference    String?
+  description  String?
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  @@index([vendorId, date])
+}
+
+model VendorPayment {
+  id            String   @id @default(cuid())
+  vendorId      String
+  amount        Int      // Amount in paise
+  date          DateTime
+  paymentMethod String?
+  reference     String?
+  notes         String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  
+  @@index([vendorId, date])
+}
+
+// Enhanced Customer Management
+model EnhancedCustomer {
+  id                  String   @id @default(cuid())
+  displayName         String
+  fullLegalName       String?
+  email               String?
+  phone               String
+  billingAddress      String?
+  shippingAddress     String?
+  gstin               String?
+  defaultPaymentTerms String?
+  preferredContact    String?  // EMAIL, PHONE, SMS
+  notes               String?
+  tags                String?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  invoices            EnhancedInvoice[]
+  
+  @@index([email])
+  @@index([displayName])
+}
+
+// Account Entries (Ledger)
+model AccountEntry {
+  id           String      @id @default(cuid())
+  type         EntryType   // CREDIT or DEBIT
+  amount       Int         // Amount in paise
+  currency     String      @default("INR")
+  reason       String
+  counterParty String?
+  date         DateTime    @default(now())
+  createdBy    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  @@index([date])
+  @@index([type])
+  @@index([counterParty])
+}
+
+enum EntryType {
+  CREDIT
+  DEBIT
+}
+
+// Enhanced Employee Management
+model EnhancedEmployee {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?  @unique
+  phone        String?
+  role         String?
+  designation  String?
+  joiningDate  DateTime
+  monthlySalary Int     // Amount in paise
+  bankDetails  String?
+  notes        String?
+  avatar       String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  attendances  EmployeeAttendance[]
+  salaryPayments SalaryPayment[]
+  createdInvoices EnhancedInvoice[]
+  
+  @@index([email])
+  @@index([isActive])
+}
+
+model EmployeeAttendance {
+  id         String            @id @default(cuid())
+  employeeId String
+  date       DateTime
+  status     AttendanceStatus  @default(PRESENT)
+  checkIn    DateTime?
+  checkOut   DateTime?
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  
+  employee EnhancedEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+}
+
+model SalaryPayment {
+  id         String   @id @default(cuid())
+  employeeId String
+  amount     Int      // Amount in paise
+  month      String   // Format: YYYY-MM
+  paidDate   DateTime
+  reference  String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  employee EnhancedEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@unique([employeeId, month])
+  @@index([employeeId, month])
+}
+
+// Enhanced Invoice Management
+model EnhancedInvoice {
+  id           String        @id @default(cuid())
+  invoiceNo    String        @unique
+  customerId   String
+  employeeId   String?       // Created by employee
+  status       InvoiceStatus @default(DRAFT)
+  issueDate    DateTime      @default(now())
+  dueDate      DateTime?
+  subtotal     Int           // Amount in paise
+  taxAmount    Int           @default(0)
+  discountAmount Int         @default(0)
+  total        Int           // Amount in paise
+  paidAmount   Int           @default(0)  // Amount paid so far in paise
+  taxBreakdown String?       // JSON string
+  notes        String?
+  terms        String?
+  customerSignature String?  // Base64 encoded signature image
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  customer     EnhancedCustomer @relation(fields: [customerId], references: [id])
+  createdBy    EnhancedEmployee? @relation(fields: [employeeId], references: [id])
+  items        EnhancedInvoiceItem[]
+  
+  @@index([issueDate])
+  @@index([customerId])
+  @@index([status])
+}
+
+model EnhancedInvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  name        String
+  description String?
+  quantity    Int
+  rate        Int      // Rate in paise
+  discount    Int      @default(0) // Discount in paise
+  taxRate     Float    @default(0) // Tax percentage
+  amount      Int      // Total amount in paise
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  invoice EnhancedInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  @@index([invoiceId])
 }

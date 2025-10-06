@@ -19,13 +19,22 @@ import {
   Trash2,
   Pencil,
   X,
-  ChevronDown,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import AdminNavbar from "@/components/AdminNavbar"
 import InvoiceForm from "@/components/InvoiceForm"
 import toast from "react-hot-toast"
+
+interface Customer {
+  id: string
+  displayName: string
+  fullLegalName?: string | null
+  email?: string | null
+  phone: string
+  billingAddress?: string | null
+  gstin?: string | null
+}
 
 interface InvoiceItem { srl: number; particular: string; quantity: number; rent: number; amount: number }
 interface Invoice {
@@ -70,14 +79,14 @@ export default function BillingPage() {
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null)
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [statusEdit, setStatusEdit] = useState<'PENDING' | 'PAID'>('PENDING')
-  const [savingStatus, setSavingStatus] = useState(false)
+  // Removed status edit/save flow
 
 
   // (No tabs; single page design)
 
   // Invoices state
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [sortBy, setSortBy] = useState<"date" | "amount" | "name">("date")
@@ -99,7 +108,24 @@ export default function BillingPage() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { if (mounted) fetchInvoices() }, [mounted])
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch("/api/enhanced-customers")
+      if (!response.ok) throw new Error("Failed to fetch customers")
+      const data = await response.json()
+      setCustomers(data.customers || [])
+    } catch (error) {
+      console.error("Error fetching customers:", error)
+      toast.error("Failed to load customers")
+    }
+  }
+
+  useEffect(() => { 
+    if (mounted) {
+      fetchInvoices()
+      fetchCustomers()
+    }
+  }, [mounted])
 
   const filteredInvoices = useMemo(() => {
     return invoices
@@ -172,7 +198,6 @@ export default function BillingPage() {
       }
       
       setPreviewInvoice(json)
-      setStatusEdit((json.status as 'PENDING' | 'PAID') || 'PENDING')
       
       // Then fetch PDF
       console.log('=== FETCHING PDF ===')
@@ -221,47 +246,7 @@ export default function BillingPage() {
     } catch { toast.error("Delete failed") }
   }
 
-  const saveInvoiceStatus = async () => {
-    if (!previewInvoice) return
-    try {
-      setSavingStatus(true)
-      const payload = {
-        customerName: previewInvoice.customerName,
-        customerAddress: previewInvoice.customerAddress,
-        customerTel: previewInvoice.customerTel,
-        customerState: previewInvoice.customerState,
-        customerStateCode: previewInvoice.customerStateCode,
-        customerGSTIN: previewInvoice.customerGSTIN || '',
-        refName: previewInvoice.refName || '',
-        bookingDate: previewInvoice.bookingDate,
-        eventDate: previewInvoice.eventDate,
-        startTime: previewInvoice.startTime,
-        endTime: previewInvoice.endTime,
-        manager: previewInvoice.manager || '',
-        advanceAmount: previewInvoice.advanceAmount,
-        balanceAmount: previewInvoice.balanceAmount,
-        remarks: previewInvoice.remarks || '',
-        totalAmount: previewInvoice.totalAmount,
-        cgstAmount: previewInvoice.cgstAmount,
-        sgstAmount: previewInvoice.sgstAmount,
-        taxableAmount: previewInvoice.taxableAmount,
-        sacCode: previewInvoice.sacCode,
-        invoiceValueInWords: previewInvoice.invoiceValueInWords,
-        status: statusEdit,
-        items: (previewInvoice.items || []).map((it) => ({
-          srl: it.srl, particular: it.particular, quantity: it.quantity, rent: it.rent, amount: it.amount,
-        })),
-      }
-      const res = await fetch(`/api/invoices/${previewInvoice.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (!res.ok) throw new Error('Failed to save')
-      toast.success('Status updated')
-      await fetchInvoices()
-    } catch {
-      toast.error('Failed to update status')
-    } finally {
-      setSavingStatus(false)
-    }
-  }
+  // Removed saveInvoiceStatus
 
   // Edit invoice: open form tab prefilled
   const [editData, setEditData] = useState<any | null>(null)
@@ -358,14 +343,7 @@ export default function BillingPage() {
                       <p className="text-xs sm:text-sm text-gray-500 truncate">Customer: {previewInvoice?.customerName}</p>
                 </div>
                     <div className="flex items-center gap-2">
-                      <div className="relative">
-                        <select value={statusEdit} onChange={(e)=>setStatusEdit(e.target.value as any)} className="appearance-none input-modern w-auto pr-8 py-2">
-                          <option value="PENDING">Pending</option>
-                          <option value="PAID">Paid</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-                  </div>
-                      <Button onClick={saveInvoiceStatus} className="btn-secondary" disabled={savingStatus}>{savingStatus ? 'Saving...' : 'Save'}</Button>
+                      {/* Status editing removed */}
                       <Button onClick={()=>previewInvoice && downloadInvoice(previewInvoice.id)} className="btn-primary flex items-center"><Download className="h-4 w-4 mr-2"/>Download</Button>
                       <Button onClick={()=>previewInvoice && editInvoice(previewInvoice)} className="btn-secondary flex items-center"><Pencil className="h-4 w-4 mr-2"/>Edit</Button>
                       <Button onClick={()=>previewInvoice && deleteInvoice(previewInvoice.id)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center"><Trash2 className="h-4 w-4 mr-2"/>Delete</Button>
@@ -410,7 +388,7 @@ export default function BillingPage() {
                 {editData ? (
                   <InvoiceForm mode="edit" invoiceId={editInvoiceId || undefined} initialData={editData} onSaved={() => { setEditData(null); setFormOpen(false); fetchInvoices(); }} />
                 ) : (
-                  <InvoiceForm onSaved={() => { setFormOpen(false); fetchInvoices(); }} />
+                  <InvoiceForm mode="create" customers={customers} onSaved={() => { setFormOpen(false); fetchInvoices(); }} />
                 )}
               </motion.div>
             </motion.div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useEffect, useState, useRef } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,28 +24,16 @@ interface InventoryFormProps {
   onCancel?: () => void
 }
 
-const categories = [
-  "Furniture",
-  "Decorations", 
-  "Audio/Video",
-  "Lighting",
-  "Tableware",
-  "Linens",
-  "Costumes",
-  "Music Equipment",
-  "Catering Equipment",
-  "Transportation",
-  "Other"
-]
+interface Category { id: string; name: string }
 
 export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFormProps) {
   const [formData, setFormData] = useState<InventoryFormData>({
     name: item?.name || "",
     description: item?.description || "",
     category: item?.category || "",
-    quantity: item?.quantity || 0,
-    price: item?.price || 0,
-    minStock: item?.minStock || 0,
+    quantity: item?.quantity ?? 0,
+    price: item?.price ?? 0,
+    minStock: item?.minStock ?? 0,
     maxStock: item?.maxStock || undefined,
     location: item?.location || "",
     supplier: item?.supplier || "",
@@ -55,6 +43,24 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
   const [imagePreview, setImagePreview] = useState<string | null>(item?.imageUrl || null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [newCategory, setNewCategory] = useState("")
+  const [addingCategory, setAddingCategory] = useState(false)
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await fetch('/api/categories')
+        if (res.ok) {
+          const data = await res.json()
+          setCategories(data)
+        }
+      } catch (e) {
+        // silent
+      }
+    }
+    loadCategories()
+  }, [])
 
   const handleInputChange = (field: keyof InventoryFormData, value: string | number | undefined) => {
     setFormData(prev => ({
@@ -105,7 +111,7 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
       return
     }
 
-    if (formData.quantity < 0 || formData.price < 0 || formData.minStock < 0) {
+    if ((formData.quantity ?? 0) < 0 || (formData.price ?? 0) < 0 || (formData.minStock ?? 0) < 0) {
       toast.error('Please enter valid numeric values')
       return
     }
@@ -117,9 +123,9 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
       submitData.append('name', formData.name)
       submitData.append('description', formData.description || '')
       submitData.append('category', formData.category)
-      submitData.append('quantity', formData.quantity.toString())
-      submitData.append('price', formData.price.toString())
-      submitData.append('minStock', formData.minStock.toString())
+      if (formData.quantity !== undefined) submitData.append('quantity', formData.quantity.toString())
+      if (formData.price !== undefined) submitData.append('price', formData.price.toString())
+      if (formData.minStock !== undefined) submitData.append('minStock', formData.minStock.toString())
       if (formData.maxStock) {
         submitData.append('maxStock', formData.maxStock.toString())
       }
@@ -210,19 +216,45 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
-                  className="w-full border border-purple-200 rounded-lg px-3 py-2 focus:border-purple-400 focus:ring-purple-400"
-                  required
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    className="w-full border border-purple-200 rounded-lg px-3 py-2 focus:border-purple-400 focus:ring-purple-400"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                  <Button type="button" variant="outline" onClick={() => setAddingCategory(true)}>+ Add</Button>
+                </div>
+                {addingCategory && (
+                  <div className="mt-2 flex gap-2">
+                    <Input placeholder="New category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+                    <Button type="button" onClick={async () => {
+                      const name = newCategory.trim()
+                      if (!name) return
+                      try {
+                        const res = await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+                        if (!res.ok) {
+                          const msg = await res.json().catch(() => ({}))
+                          throw new Error(msg?.error || 'Failed')
+                        }
+                        setNewCategory("")
+                        setAddingCategory(false)
+                        const list = await fetch('/api/categories').then(r => r.json())
+                        setCategories(list)
+                        handleInputChange('category', name)
+                      } catch (e) {
+                        // optional toast import already present
+                        toast.error(e instanceof Error ? e.message : 'Failed to add category')
+                      }
+                    }}>Save</Button>
+                    <Button type="button" variant="outline" onClick={() => { setAddingCategory(false); setNewCategory("") }}>Cancel</Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -248,9 +280,9 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
                 </label>
                 <Input
                   type="number"
-                  value={formData.quantity}
-                  onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 0)}
-                  placeholder="0"
+                  value={formData.quantity ?? ''}
+                  onChange={(e) => handleInputChange('quantity', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder=""
                   min="0"
                   className="border-purple-200 focus:border-purple-400 focus:ring-purple-400"
                   required
@@ -263,9 +295,9 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
                 </label>
                 <Input
                   type="number"
-                  value={formData.price}
-                  onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
+                  value={formData.price ?? ''}
+                  onChange={(e) => handleInputChange('price', e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  placeholder=""
                   min="0"
                   step="0.01"
                   className="border-purple-200 focus:border-purple-400 focus:ring-purple-400"
@@ -279,9 +311,9 @@ export default function InventoryForm({ item, onSuccess, onCancel }: InventoryFo
                 </label>
                 <Input
                   type="number"
-                  value={formData.minStock}
-                  onChange={(e) => handleInputChange('minStock', parseInt(e.target.value) || 0)}
-                  placeholder="0"
+                  value={formData.minStock ?? ''}
+                  onChange={(e) => handleInputChange('minStock', e.target.value === '' ? undefined : parseInt(e.target.value))}
+                  placeholder=""
                   min="0"
                   className="border-purple-200 focus:border-purple-400 focus:ring-purple-400"
                   required

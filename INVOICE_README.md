@@ -181,7 +181,7 @@ Downloads the PDF for a specific invoice.
 ### Navigation
 - **Generate Invoice**: `/invoice`
 - **View All Invoices**: `/admin/invoices`
-- **Admin Dashboard**: `/admin/dashboard`
+- **Admin Inventory**: `/admin/inventory`
 
 ## PDF Format
 

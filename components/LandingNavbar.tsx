@@ -40,23 +40,23 @@ export default function LandingNavbar() {
           : "bg-transparent"
       }`}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6">
+        <div className="flex h-12 sm:h-14 items-center justify-between">
           {/* Logo */}
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="flex items-center space-x-3"
+            className="flex items-center space-x-2 sm:space-x-3"
           >
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg">H</span>
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-sm sm:text-lg">H</span>
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
+            <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
               Humjoli
             </span>
           </motion.div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-6">
             <Link href="#services">
               <Button variant="ghost" className="text-gray-700 hover:text-purple-600">
                 Services
@@ -75,7 +75,7 @@ export default function LandingNavbar() {
           </nav>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-3">
             {session ? (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 text-gray-700">
@@ -137,11 +137,11 @@ export default function LandingNavbar() {
               transition={{ duration: 0.2 }}
               className="md:hidden border-t border-gray-200"
             >
-              <div className="py-4 space-y-2">
+              <div className="py-3 space-y-1.5">
                 <Link href="#services">
                   <Button
                     variant="ghost"
-                    className="w-full justify-start px-4 py-3 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
+                    className="w-full justify-start px-3 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Services
@@ -150,7 +150,7 @@ export default function LandingNavbar() {
                 <Link href="#about">
                   <Button
                     variant="ghost"
-                    className="w-full justify-start px-4 py-3 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
+                    className="w-full justify-start px-3 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     About
@@ -159,7 +159,7 @@ export default function LandingNavbar() {
                 <Link href="#contact">
                   <Button
                     variant="ghost"
-                    className="w-full justify-start px-4 py-3 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
+                    className="w-full justify-start px-3 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Contact
@@ -168,13 +168,13 @@ export default function LandingNavbar() {
 
                 {/* Mobile Auth */}
                 {session ? (
-                  <div className="px-4 py-3 border-t border-gray-200">
+                  <div className="px-3 py-2.5 border-t border-gray-200">
                     <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
-                        <User className="h-4 w-4 text-white" />
+                      <div className="h-7 w-7 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+                        <User className="h-3.5 w-3.5 text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 truncate">
                           {session.user?.name || session.user?.email}
                         </p>
                       </div>
@@ -182,18 +182,18 @@ export default function LandingNavbar() {
                         onClick={() => signOut({ callbackUrl: "/" })}
                         variant="outline"
                         size="sm"
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50 px-2.5 py-1.5"
                       >
                         <LogOut className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="px-4 py-3 border-t border-gray-200 space-y-3">
+                  <div className="px-3 py-2.5 border-t border-gray-200 space-y-2">
                     <Link href="/signin" className="block">
                       <Button
                         variant="ghost"
-                        className="w-full justify-start px-4 py-3 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
+                        className="w-full justify-start px-3 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         Sign In

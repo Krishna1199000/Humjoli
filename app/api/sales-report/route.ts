@@ -6,107 +6,127 @@ import { prisma } from "@/lib/prisma"
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-function startOfMonth(year: number, month: number) {
-  return new Date(year, month - 1, 1, 0, 0, 0)
-}
-
-function endOfMonth(year: number, month: number) {
-  return new Date(year, month, 0, 23, 59, 59, 999)
-}
-
-export async function GET(req: NextRequest) {
+// GET - Generate sales report
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
     }
 
-    const url = new URL(req.url)
-    const monthParam = url.searchParams.get('month')
-    const yearParam = url.searchParams.get('year')
-    const startParam = url.searchParams.get('startDate')
-    const endParam = url.searchParams.get('endDate')
+    // Allow EMPLOYEE and ADMIN to access report
+    if (!["EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+    }
 
-    let start: Date | undefined
-    let end: Date | undefined
+    const { searchParams } = new URL(request.url)
+    const startDate = searchParams.get('start_date')
+      ? new Date(searchParams.get('start_date')!)
+      : new Date(new Date().getFullYear(), new Date().getMonth() - 11, 1)
+    const endDate = searchParams.get('end_date')
+      ? new Date(searchParams.get('end_date')!)
+      : new Date()
 
-    const now = new Date()
-    const month = monthParam ? parseInt(monthParam, 10) : now.getMonth() + 1
-    const year = yearParam ? parseInt(yearParam, 10) : now.getFullYear()
-
-    if (startParam || endParam) {
-      if (startParam) start = new Date(startParam)
-      if (endParam) {
-        const d = new Date(endParam)
-        d.setHours(23, 59, 59, 999)
-        end = d
+    // Get all sales from Billing (legacy Invoice model)
+    const sales = await prisma.invoice.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        items: true,
       }
-    } else {
-      start = startOfMonth(year, month)
-      end = endOfMonth(year, month)
-    }
-
-    const where: any = {}
-    if (start || end) {
-      where.createdAt = {}
-      if (start) where.createdAt.gte = start
-      if (end) where.createdAt.lte = end
-    }
-
-    const invoices = await prisma.invoice.findMany({
-      where,
-      include: { items: true },
-      orderBy: { createdAt: 'asc' },
     })
 
-    const summary = {
-      totalSales: 0,
-      invoiceCount: invoices.length,
-      avgInvoice: 0,
-    }
+    // Do not include purchases in this sales-only report
+    const purchases: any[] = []
 
-    // Build groupings
-    const trendMap = new Map<string, number>()
-    const byCustomerMap = new Map<string, number>()
-    const byItemMap = new Map<string, number>()
+    // Calculate totals
+    // Old invoice stores amounts in rupees; convert to paise for consistency
+    const totalSales = sales.reduce((sum, sale) => sum + Math.round(sale.totalAmount * 100), 0)
+    const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amount, 0)
+    const netIncome = totalSales - totalPurchases
 
-    for (const inv of invoices) {
-      summary.totalSales += Number(inv.totalAmount || 0)
-      const d = new Date(inv.createdAt)
-      const key = d.toISOString().slice(0, 10)
-      trendMap.set(key, (trendMap.get(key) || 0) + Number(inv.totalAmount || 0))
-
-      const customerKey = inv.customerName || 'Unknown'
-      byCustomerMap.set(customerKey, (byCustomerMap.get(customerKey) || 0) + Number(inv.totalAmount || 0))
-
-      for (const item of inv.items) {
-        const itemKey = item.particular || 'Item'
-        byItemMap.set(itemKey, (byItemMap.get(itemKey) || 0) + Number(item.amount || 0))
+    // Get top customers
+    const customerSales = sales.reduce((acc, sale) => {
+      const key = sale.customerName
+      if (!acc[key]) {
+        acc[key] = {
+          id: key,
+          displayName: key,
+          totalAmount: 0,
+          invoiceCount: 0
+        }
       }
+      acc[key].totalAmount += Math.round(sale.totalAmount * 100)
+      acc[key].invoiceCount++
+      return acc
+    }, {} as Record<string, any>)
+
+    const topCustomers = Object.values(customerSales)
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, 5)
+
+    const topVendors: any[] = []
+
+    // Get monthly trends
+    const months = []
+    let currentDate = new Date(startDate)
+    while (currentDate <= endDate) {
+      months.push(currentDate.toISOString().slice(0, 7)) // YYYY-MM
+      currentDate.setMonth(currentDate.getMonth() + 1)
     }
 
-    summary.avgInvoice = summary.invoiceCount > 0 ? summary.totalSales / summary.invoiceCount : 0
+    const monthlySales = months.map(month => {
+      const monthSales = sales.filter(sale => 
+        sale.createdAt.toISOString().startsWith(month)
+      ).reduce((sum, sale) => sum + Math.round(sale.totalAmount * 100), 0)
 
-    const trend = Array.from(trendMap.entries()).map(([date, amount]) => ({ date, amount }))
-    const byCustomer = Array.from(byCustomerMap.entries()).map(([name, value]) => ({ name, value }))
-    const byItem = Array.from(byItemMap.entries()).map(([name, value]) => ({ name, value }))
+      const monthPurchases = 0
 
-    const table = invoices.map((inv) => ({
-      id: inv.id,
-      quotationNo: inv.quotationNo,
-      customerName: inv.customerName,
-      customerAddress: inv.customerAddress,
-      customerState: inv.customerState,
-      date: inv.createdAt,
-      time: inv.startTime ? inv.startTime : '',
-      amount: Number(inv.totalAmount || 0),
-      status: (inv as any).status || (Number(inv.balanceAmount || 0) > 0 ? 'PENDING' : 'PAID'),
-    }))
+      return {
+        month,
+        sales: monthSales,
+        purchases: monthPurchases
+      }
+    })
 
-    return NextResponse.json({ summary, trend, byCustomer, byItem, invoices: table })
-  } catch (e) {
-    console.error('Sales report error:', e)
-    return NextResponse.json({ error: 'Failed to compute sales report' }, { status: 500 })
+    // Get product performance
+    const productPerformance = sales.flatMap(sale => sale.items)
+      .reduce((acc, item) => {
+        const key = (item as any).name ?? item.particular
+        const label = (item as any).name ?? item.particular
+        if (!acc[key]) {
+          acc[key] = {
+            name: label,
+            quantity: 0,
+            revenue: 0
+          }
+        }
+        acc[key].quantity += item.quantity
+        // old invoice item amount is rupees
+        acc[key].revenue += Math.round(item.amount * 100)
+        return acc
+      }, {} as Record<string, any>)
+
+    const topProducts = Object.values(productPerformance)
+      .sort((a: any, b: any) => b.revenue - a.revenue)
+      .slice(0, 10)
+
+    return NextResponse.json({
+      totalSales,
+      totalPurchases: 0,
+      netIncome: totalSales,
+      topCustomers,
+      topVendors,
+      monthlySales,
+      productPerformance: topProducts
+    })
+  } catch (error) {
+    console.error("Error generating sales report:", error)
+    return NextResponse.json({ error: "Failed to generate sales report" }, { status: 500 })
   }
 }
-

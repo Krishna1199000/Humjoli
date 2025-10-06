@@ -34,6 +34,7 @@ import {
 import Link from "next/link"
 import Image from "next/image"
 import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -136,10 +137,18 @@ const stats = [
 
 export default function LandingPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
   const { scrollY } = useScroll()
   const y1 = useTransform(scrollY, [0, 300], [0, -50])
   const y2 = useTransform(scrollY, [0, 300], [0, -100])
+
+  // Redirect authenticated users to inventory
+  useEffect(() => {
+    if (session) {
+      router.push('/inventory')
+    }
+  }, [session, router])
 
   useEffect(() => {
     const timer = setInterval(() => {

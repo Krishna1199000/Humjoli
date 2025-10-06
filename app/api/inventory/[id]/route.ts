@@ -10,7 +10,17 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Allow public access to view inventory items
+    // Check authentication for inventory access
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Allow CUSTOMER, EMPLOYEE, and ADMIN to view inventory items
+    if (!["CUSTOMER", "EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+    }
     const inventoryItem = await prisma.inventory.findUnique({
       where: { id: params.id }
     })
@@ -34,8 +44,13 @@ export async function PUT(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Allow EMPLOYEE and ADMIN to update inventory items
+    if (!["EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions. Only employees and admins can update inventory items." }, { status: 403 })
     }
 
     const formData = await request.formData()
@@ -127,7 +142,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete inventory item
+// DELETE - Delete inventory item (ADMIN only)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -135,8 +150,13 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    // Only ADMIN can delete inventory items
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Insufficient permissions. Only admins can delete inventory items." }, { status: 403 })
     }
 
     // Get existing item to delete image

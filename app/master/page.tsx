@@ -107,7 +107,7 @@ export default function MasterPage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Link href="/admin/dashboard">
+              <Link href="/admin/inventory">
                 <Button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold transition-all duration-300">
                   <Settings className="mr-2 h-4 w-4" />
                   Dashboard
@@ -267,7 +267,7 @@ export default function MasterPage() {
           transition={{ duration: 0.6, delay: 0.7 }}
           className="mt-8 text-center"
         >
-          <Link href="/admin/dashboard">
+          <Link href="/admin/inventory">
             <Button className="bg-white border-2 border-purple-300 text-purple-600 hover:bg-purple-50 px-6 py-3 rounded-full font-semibold transition-all duration-300">
               ← Back to Dashboard
             </Button>

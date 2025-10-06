@@ -13,6 +13,7 @@ import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { toast } from "react-hot-toast"
+import OtpVerification from "@/components/OtpVerification"
 
 export default function SignUpPage() {
   const { data: session, status } = useSession()
@@ -20,6 +21,8 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showOtp, setShowOtp] = useState(false)
+  const [signupData, setSignupData] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -67,31 +70,58 @@ export default function SignUpPage() {
         return
       }
 
-      const response = await fetch("/api/auth/register", {
+      // Store signup data temporarily
+      const tempData = {
+        name: formData.name,
+        password: formData.password,
+        phone: "", // Add if you have phone field
+        businessName: "", // Add if you have business name field
+        address: "", // Add if you have address field
+      }
+      setSignupData(tempData)
+
+      // Send OTP for signup
+      const response = await fetch("/api/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.name,
           email: formData.email,
-          password: formData.password,
+          purpose: "SIGNUP",
+          tempData: tempData,
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        toast.error(data.error || "Registration failed")
+        toast.error(data.error || "Failed to send OTP")
       } else {
-        toast.success("Account created successfully! Please sign in.")
-        router.push("/signin")
+        toast.success("OTP sent to your email!")
+        setShowOtp(true)
       }
     } catch (error) {
       toast.error("An error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show OTP verification if OTP step is active
+  if (showOtp) {
+    return (
+      <OtpVerification
+        email={formData.email}
+        purpose="SIGNUP"
+        tempData={signupData}
+        onBack={() => setShowOtp(false)}
+        onSuccess={() => {
+          // Account created successfully, redirect to signin
+          router.push("/signin")
+        }}
+      />
+    )
   }
 
   return (

@@ -3,79 +3,59 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-// GET - Fetch all customers with optional filters and pagination
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+// GET - Fetch all customers with search and pagination
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
 
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Allow all authenticated users to view customers (needed for invoice creation)
+    if (!["CUSTOMER", "EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
-    const email = searchParams.get('email')
-    const phone = searchParams.get('phone')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
 
-    const where: any = {}
-
+    // Build where clause
+    const where: any = { isActive: true }
+    
     if (search) {
       where.OR = [
-        {
-          name: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          email: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          phone: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          gstNumber: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        }
+        { displayName: { contains: search, mode: 'insensitive' } },
+        { fullLegalName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } }
       ]
     }
 
-    if (email) {
-      where.email = {
-        contains: email,
-        mode: 'insensitive'
-      }
-    }
-
-    if (phone) {
-      where.phone = {
-        contains: phone,
-        mode: 'insensitive'
-      }
-    }
-
-    // Get total count for pagination
-    const totalCount = await prisma.customer.count({ where })
-
-    const customers = await prisma.customer.findMany({
+    const customers = await prisma.enhancedCustomer.findMany({
       where,
+      include: {
+        _count: {
+          select: {
+            invoices: true
+          }
+        }
+      },
       orderBy: {
-        createdAt: 'desc'
+        displayName: 'asc'
       },
       skip,
       take: limit
     })
+
+    // Get total count for pagination
+    const totalCount = await prisma.enhancedCustomer.count({ where })
 
     return NextResponse.json({
       customers,
@@ -96,45 +76,88 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
 
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Allow EMPLOYEE and ADMIN to create customers
+    if (!["EMPLOYEE", "ADMIN"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
     }
 
     const body = await request.json()
-    const { name, email, phone, address, gstNumber } = body
+    const {
+      displayName,
+      fullLegalName,
+      email,
+      phone,
+      billingAddress,
+      shippingAddress,
+      gstin,
+      defaultPaymentTerms,
+      preferredContact,
+      notes,
+      tags
+    } = body
 
-    if (!name || !phone) {
-      return NextResponse.json({ error: "Name and phone are required" }, { status: 400 })
+    // Validate required fields
+    if (!displayName) {
+      return NextResponse.json({ 
+        error: "Display name is required" 
+      }, { status: 400 })
     }
 
-    // Check if customer with same phone already exists
-    const existingCustomer = await prisma.customer.findFirst({
-      where: { phone }
-    })
-
-    if (existingCustomer) {
-      return NextResponse.json({ error: "Customer with this phone number already exists" }, { status: 400 })
+    if (!phone) {
+      return NextResponse.json({ 
+        error: "Phone number is required" 
+      }, { status: 400 })
     }
 
-    // Check if customer with same email already exists (if email provided)
+    // Validate email format if provided
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ 
+        error: "Invalid email format" 
+      }, { status: 400 })
+    }
+
+    // Validate preferred contact method
+    if (preferredContact && !['EMAIL', 'PHONE', 'SMS'].includes(preferredContact)) {
+      return NextResponse.json({ 
+        error: "Invalid preferred contact method" 
+      }, { status: 400 })
+    }
+
+    // Check for duplicate email if provided
     if (email) {
-      const existingEmailCustomer = await prisma.customer.findFirst({
-        where: { email }
+      const existingCustomer = await prisma.enhancedCustomer.findFirst({
+        where: {
+          email: { equals: email, mode: 'insensitive' },
+          isActive: true
+        }
       })
 
-      if (existingEmailCustomer) {
-        return NextResponse.json({ error: "Customer with this email already exists" }, { status: 400 })
+      if (existingCustomer) {
+        return NextResponse.json({ 
+          error: "Customer with this email already exists" 
+        }, { status: 400 })
       }
     }
 
-    const customer = await prisma.customer.create({
+    // Create customer
+    const customer = await prisma.enhancedCustomer.create({
       data: {
-        name,
-        email,
+        displayName,
+        fullLegalName: fullLegalName || null,
+        email: email || null,
         phone,
-        address,
-        gstNumber
+        billingAddress: billingAddress || null,
+        shippingAddress: shippingAddress || null,
+        gstin: gstin || null,
+        defaultPaymentTerms: defaultPaymentTerms || null,
+        preferredContact: preferredContact || null,
+        notes: notes || null,
+        tags: tags || null,
       }
     })
 
@@ -143,4 +166,4 @@ export async function POST(request: NextRequest) {
     console.error("Error creating customer:", error)
     return NextResponse.json({ error: "Failed to create customer" }, { status: 500 })
   }
-} 
+}
